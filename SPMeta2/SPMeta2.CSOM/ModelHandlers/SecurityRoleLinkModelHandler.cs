@@ -1,9 +1,12 @@
 ﻿using System;
 using Microsoft.SharePoint.Client;
 using SPMeta2.Common;
+using SPMeta2.CSOM.Extensions;
 using SPMeta2.CSOM.ModelHosts;
 using SPMeta2.Definitions;
+using SPMeta2.Definitions.Base;
 using SPMeta2.ModelHandlers;
+using SPMeta2.Services;
 using SPMeta2.Utils;
 
 namespace SPMeta2.CSOM.ModelHandlers
@@ -21,7 +24,7 @@ namespace SPMeta2.CSOM.ModelHandlers
 
         #region methods
 
-        protected Web GetWebFromSPSecurableObject(SecurableObject securableObject)
+        protected Web ExtractWeb(SecurableObject securableObject)
         {
             if (securableObject is Web)
                 return securableObject as Web;
@@ -35,7 +38,7 @@ namespace SPMeta2.CSOM.ModelHandlers
             throw new Exception(string.Format("Can't extract SPWeb for securableObject of type: [{0}]", securableObject.GetType()));
         }
 
-        protected override void DeployModelInternal(object modelHost, DefinitionBase model)
+        public override void DeployModel(object modelHost, DefinitionBase model)
         {
             var securityGroupModelHost = modelHost.WithAssertAndCast<SecurityGroupModelHost>("modelHost", value => value.RequireNotNull());
             var securityRoleLinkModel = model.WithAssertAndCast<SecurityRoleLinkDefinition>("model", value => value.RequireNotNull());
@@ -43,13 +46,13 @@ namespace SPMeta2.CSOM.ModelHandlers
             var securableObject = securityGroupModelHost.SecurableObject;
 
             var group = securityGroupModelHost.SecurityGroup;
-            var web = GetWebFromSPSecurableObject(securityGroupModelHost.SecurableObject);
+            var web = ExtractWeb(securityGroupModelHost.SecurableObject);
 
             var context = group.Context;
             var existingRoleAssignments = web.RoleAssignments;
 
             context.Load(existingRoleAssignments, r => r.Include(d => d.Member, d => d.RoleDefinitionBindings));
-            context.ExecuteQuery();
+            context.ExecuteQueryWithTrace();
 
             RoleAssignment existingRoleAssignment = null;
 
@@ -62,14 +65,10 @@ namespace SPMeta2.CSOM.ModelHandlers
                 }
             }
 
+            var currentRoleDefinition = ResolveSecurityRole(web, securityRoleLinkModel);
 
-            var roleDefinitions = web.RoleDefinitions;
-
-            context.Load(roleDefinitions);
-            context.ExecuteQuery();
-
-            var currentRoleDefinition = FindRoleDefinition(roleDefinitions, securityRoleLinkModel.SecurityRoleName);
-
+            context.Load(currentRoleDefinition, r => r.Id, r => r.Name);
+            context.ExecuteQueryWithTrace();
 
             InvokeOnModelEvent(this, new ModelEventArgs
             {
@@ -86,6 +85,9 @@ namespace SPMeta2.CSOM.ModelHandlers
 
             if (existingRoleAssignment == null)
             {
+                TraceService.Information((int)LogEventId.ModelProvisionProcessingNewObject, "Processing new security role link");
+
+
                 var roleBindings = new RoleDefinitionBindingCollection(context);
                 roleBindings.Add(currentRoleDefinition);
                 existingRoleAssignment = web.RoleAssignments.Add(group, roleBindings);
@@ -101,11 +103,15 @@ namespace SPMeta2.CSOM.ModelHandlers
                     ModelHost = modelHost
                 });
 
+                TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "Calling existingRoleAssignment.Update()");
                 existingRoleAssignment.Update();
-                context.ExecuteQuery();
+
+                context.ExecuteQueryWithTrace();
             }
             else
             {
+                TraceService.Information((int)LogEventId.ModelProvisionProcessingExistingObject, "Processing existing security role link");
+
                 var ensureDefinition = true;
 
                 foreach (var t in existingRoleAssignment.RoleDefinitionBindings)
@@ -132,8 +138,10 @@ namespace SPMeta2.CSOM.ModelHandlers
                         ModelHost = modelHost
                     });
 
+                    TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "Calling existingRoleAssignment.Update()");
                     existingRoleAssignment.Update();
-                    context.ExecuteQuery();
+
+                    context.ExecuteQueryWithTrace();
                 }
                 else
                 {
@@ -151,13 +159,36 @@ namespace SPMeta2.CSOM.ModelHandlers
             }
         }
 
-        private RoleDefinition FindRoleDefinition(RoleDefinitionCollection roleDefinitions, string roleDefinitionName)
+        protected RoleDefinition ResolveSecurityRole(Web web, SecurityRoleLinkDefinition rolDefinitionModel)
         {
-            foreach (var roleDefinition in roleDefinitions)
-                if (string.Compare(roleDefinition.Name, roleDefinitionName, true) == 0)
-                    return roleDefinition;
+            var context = web.Context;
+            var roleDefinitions = web.RoleDefinitions;
 
-            return null;
+            context.Load(roleDefinitions, r => r.Include(l => l.Name, l => l.Id));
+            context.ExecuteQueryWithTrace();
+
+            if (!string.IsNullOrEmpty(rolDefinitionModel.SecurityRoleName))
+            {
+                foreach (var roleDefinition in roleDefinitions)
+                    if (string.Compare(roleDefinition.Name, rolDefinitionModel.SecurityRoleName, true) == 0)
+                        return roleDefinition;
+            }
+            else if (rolDefinitionModel.SecurityRoleId > 0)
+            {
+                foreach (var roleDefinition in roleDefinitions)
+                {
+                    if (roleDefinition.Id == rolDefinitionModel.SecurityRoleId)
+                        return roleDefinition;
+                }
+            }
+            else if (!string.IsNullOrEmpty(rolDefinitionModel.SecurityRoleType))
+            {
+                var roleType = (RoleType)Enum.Parse(typeof(RoleType), rolDefinitionModel.SecurityRoleType, true);
+
+                return roleDefinitions.GetByType(roleType);
+            }
+
+            throw new ArgumentException(string.Format("Cannot resolve role definition for role definition link model:[{0}]", rolDefinitionModel));
         }
 
         #endregion

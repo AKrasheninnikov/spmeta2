@@ -6,16 +6,20 @@ using System.Threading.Tasks;
 
 namespace SPMeta2.Regression.Runners.Utils
 {
-    public static class RunnerEnvironment
+    public static class RunnerEnvironmentUtils
     {
         public static string GetEnvironmentVariable(string varName)
         {
-            var result = Environment.GetEnvironmentVariable(varName);
+            return Environment.GetEnvironmentVariable(varName, EnvironmentVariableTarget.Machine);
+        }
 
-            if (string.IsNullOrEmpty(result))
-                result = Environment.GetEnvironmentVariable(varName, EnvironmentVariableTarget.Machine);
+        public static IEnumerable<string> GetEnvironmentVariables(string varName)
+        {
+            var varString = Environment.GetEnvironmentVariable(varName, EnvironmentVariableTarget.Machine);
 
-            return result;
+            return string.IsNullOrEmpty(varString) ?
+                    new string[0] :
+                    varString.Split(new string[] { "," }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim());
         }
     }
 }

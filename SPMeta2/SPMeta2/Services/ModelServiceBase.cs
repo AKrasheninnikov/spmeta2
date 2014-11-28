@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using SPMeta2.Common;
 using SPMeta2.Definitions;
+using SPMeta2.Exceptions;
 using SPMeta2.Extensions;
 using SPMeta2.ModelHandlers;
 using SPMeta2.ModelHosts;
@@ -13,13 +14,23 @@ using System.Reflection;
 
 namespace SPMeta2.Services
 {
-    public abstract class ModelServiceBase
+    /// <summary>
+    /// Base model service class for model provision operations.
+    /// </summary>
+    public abstract class ModelServiceBase : SPMetaServiceBase
     {
         #region constructors
 
         public ModelServiceBase()
         {
-            ModelHandlers = new Dictionary<Type, ModelHandlerBase>();
+            TraceService = ServiceContainer.Instance.GetService<TraceServiceBase>();
+
+            using (new TraceActivityScope(TraceService, (int)LogEventId.Initialization,
+                string.Format("Initializing new ModelServiceBase instance of type: [{0}]", GetType())))
+            {
+                ModelHandlers = new Dictionary<Type, ModelHandlerBase>();
+                ModelTraverseService = ServiceContainer.Instance.GetService<ModelTreeTraverseServiceBase>();
+            }
         }
 
         #endregion
@@ -35,9 +46,16 @@ namespace SPMeta2.Services
         public static void RegisterModelHandlers<T>(ModelServiceBase instance, Assembly asm)
             where T : ModelHandlerBase
         {
-            instance.ModelHandlers.Clear();
-
+            var traceService = ServiceContainer.Instance.GetService<TraceServiceBase>();
             var handlerTypes = ReflectionUtils.GetTypesFromAssembly<T>(asm);
+
+            traceService.InformationFormat((int)LogEventId.CoreCalls,
+                  "RegisterModelHandlers for service:[{0}] and assembly: [{1}]",
+                  new object[]
+                    {
+                        instance.GetType(),
+                        asm.FullName
+                    });
 
             foreach (var handlerType in handlerTypes)
             {
@@ -46,7 +64,19 @@ namespace SPMeta2.Services
                 if (handlerInstance != null)
                 {
                     if (!instance.ModelHandlers.ContainsKey(handlerInstance.TargetType))
+                    {
+                        traceService.VerboseFormat((int)LogEventId.CoreCalls,
+                           "Model handler for type [{0}] has not been registered yet. Registering.",
+                           new object[] { handlerInstance.TargetType });
+
                         instance.ModelHandlers.Add(handlerInstance.TargetType, handlerInstance);
+                    }
+                    else
+                    {
+                        traceService.VerboseFormat((int)LogEventId.CoreCalls,
+                            "Model handler for type [{0}] has been registered. Skipping.",
+                           new object[] { handlerInstance.TargetType });
+                    }
                 }
             }
         }
@@ -55,15 +85,12 @@ namespace SPMeta2.Services
 
         #region properties
 
+        // public ModelWeighServiceBase ModelWeighService { get; set; }
+
         private readonly List<ModelHandlerBase> ModelHandlerEvents = new List<ModelHandlerBase>();
         private ModelNode _activeModelNode = null;
 
-        public Dictionary<Type, ModelHandlerBase> ModelHandlers { get; set; }
-
-        protected virtual List<ModelWeigh> GetModelWeighs()
-        {
-            return DefaultModelWegh.Weighs;
-        }
+        public ModelTreeTraverseServiceBase ModelTraverseService { get; set; }
 
         #endregion
 
@@ -71,24 +98,54 @@ namespace SPMeta2.Services
 
         public EventHandler<ModelEventArgs> OnModelEvent;
 
-        //public EventHandler<ModelDefinitionEventArgs> OnDeployingModel;
-        //public EventHandler<ModelDefinitionEventArgs> OnDeployedModel;
-
-        //public EventHandler<ModelDefinitionEventArgs> OnRetractingModel;
-        //public EventHandler<ModelDefinitionEventArgs> OnRetractedModel;
-
-        //protected virtual void InvokeOnDeployingModel(object sender, ModelDefinitionEventArgs args)
-        //{
-        //    if (OnDeployingModel != null) OnDeployingModel(sender, args);
-        //}
-
-        //protected virtual void InvokeOnDeployedModel(object sender, ModelDefinitionEventArgs args)
-        //{
-        //    if (OnDeployedModel != null) OnDeployedModel(sender, args);
-        //}
-
         public EventHandler<OnModelNodeProcessedEventArgs> OnModelNodeProcessed;
         public EventHandler<OnModelNodeProcessingEventArgs> OnModelNodeProcessing;
+
+        #endregion
+
+        #region methods
+
+        public void RegisterModelHandlers(Assembly assembly)
+        {
+            RegisterModelHandlers<ModelHandlerBase>(assembly);
+        }
+
+        public void RegisterModelHandlers<TModelHandlerBase>(Assembly assembly)
+            where TModelHandlerBase : ModelHandlerBase
+        {
+            using (new TraceActivityScope(TraceService, (int)LogEventId.CoreCalls, string.Format("RegisterModelHandlers for assembly:[{0}]", assembly.FullName)))
+            {
+                RegisterModelHandlers<TModelHandlerBase>(this, assembly);
+            }
+        }
+
+        public void RegisterModelHandler(ModelHandlerBase modelHandlerType)
+        {
+            TraceService.InformationFormat((int)LogEventId.CoreCalls,
+                  "RegisterModelHandler of type:[{0}] for target type:[{1}]",
+                  new object[]
+                    {
+                       modelHandlerType.GetType(),
+                       modelHandlerType.TargetType
+                    });
+
+            if (!ModelHandlers.ContainsKey(modelHandlerType.TargetType))
+            {
+                TraceService.VerboseFormat((int)LogEventId.CoreCalls,
+                    "Model handler for type [{0}] has not been registered yet. Registering.",
+                    new object[] { modelHandlerType.GetType() });
+
+                ModelHandlers.Add(modelHandlerType.TargetType, modelHandlerType);
+            }
+            else
+            {
+                TraceService.VerboseFormat((int)LogEventId.CoreCalls,
+                    "Model handler for type [{0}] has been registered. Skipping.",
+                    new object[] { modelHandlerType.GetType() });
+            }
+        }
+
+        public Dictionary<Type, ModelHandlerBase> ModelHandlers { get; set; }
 
         #endregion
 
@@ -97,7 +154,6 @@ namespace SPMeta2.Services
         public virtual void DeployModel(ModelHostBase modelHost, ModelNode model)
         {
             EnsureModelHandleEvents();
-
             ProcessModelDeployment(modelHost, model);
         }
 
@@ -120,7 +176,7 @@ namespace SPMeta2.Services
 
         #endregion
 
-        #region methods
+        #region protected
 
         protected void InvokeOnModelNodeProcessed(object sender, OnModelNodeProcessedEventArgs args)
         {
@@ -145,99 +201,84 @@ namespace SPMeta2.Services
 
         private void EnsureModelHandleEvents()
         {
-            foreach (var modelHandler in ModelHandlers.Values
-                                                      .Where(modelHandler => !ModelHandlerEvents.Contains(modelHandler)))
+            using (new TraceMethodActivityScope(TraceService, (int)LogEventId.CoreCalls))
             {
-                modelHandler.OnModelEvent += (s, e) =>
+                foreach (var modelHandler in ModelHandlers.Values
+                    .Where(modelHandler => !ModelHandlerEvents.Contains(modelHandler)))
                 {
-                    if (_activeModelNode != null)
+                    modelHandler.OnModelEvent += (s, e) =>
                     {
-                        _activeModelNode.InvokeOnModelEvents(e.Object, e.EventType);
-                        _activeModelNode.InvokeOnModelContextEvents(s, e);
-                    }
-                };
+                        if (e.CurrentModelNode != null)
+                        {
+                            e.CurrentModelNode.InvokeOnModelEvents(e.Object, e.EventType);
+                            e.CurrentModelNode.InvokeOnModelContextEvents(s, e);
+                        }
+                        else if (_activeModelNode != null)
+                        {
+                            _activeModelNode.InvokeOnModelEvents(e.Object, e.EventType);
+                            _activeModelNode.InvokeOnModelContextEvents(s, e);
+                        }
+                    };
 
-                ModelHandlerEvents.Add(modelHandler);
+                    ModelHandlerEvents.Add(modelHandler);
+                }
             }
         }
 
-        private void ProcessModelDeployment(object modelHost, ModelNode modelNode)
+        protected ModelHandlerBase ResolveModelHandlerForNode(ModelNode modelNode)
         {
-            InvokeOnModelNodeProcessing(this, new OnModelNodeProcessingEventArgs
-            {
-                ModelNode = modelNode,
-                ModelHost = modelHost
-            });
-
             var modelDefinition = modelNode.Value as DefinitionBase;
             var modelHandler = ResolveModelHandler(modelDefinition.GetType());
 
             if (modelHandler == null)
             {
+                TraceService.Error((int)LogEventId.ModelProcessingNullModelHandler, string.Format("Model handler instance is NULL. Throwing ArgumentNullException exception."));
+
                 throw new ArgumentNullException(
                     string.Format("Can't find model handler for type:[{0}]. Current ModelService type: [{1}].",
                         modelDefinition.GetType(),
                         GetType()));
             }
 
-            // modelHandler might change a model host to allow continiuation
-            // spsite -> spweb -> spcontentype -> spcontentypelink
+            return modelHandler;
+        }
 
-            // process current model
-            if (modelDefinition.RequireSelfProcessing)
+        private void ProcessModelDeployment(object modelHost, ModelNode modelNode)
+        {
+            using (new TraceActivityScope(TraceService, (int)LogEventId.ModelProcessing, string.Format("ProcessModelDeployment for model:[{0}]", modelNode.Value.GetType())))
             {
-                _activeModelNode = modelNode;
+                ModelTraverseService.OnModelHandlerResolve += ResolveModelHandlerForNode;
 
-                modelNode.State = ModelNodeState.Processing;
-                modelHandler.DeployModel(modelHost, modelDefinition);
-                modelNode.State = ModelNodeState.Processed;
-
-                _activeModelNode = null;
-            }
-
-            InvokeOnModelNodeProcessed(this, new OnModelNodeProcessedEventArgs
-            {
-                ModelNode = modelNode,
-                ModelHost = modelHost
-            });
-
-            // TODO
-            // here must be a "context change" to provide an ability to continue the
-            // deployment chain with changes from SPWeb to SPList
-
-            // sort out child models by types
-            var childModelTypes = modelNode.ChildModels
-                                       .Select(m => m.Value.GetType())
-                                       .GroupBy(t => t);
-
-            foreach (var childModelType in childModelTypes)
-            {
-                modelHandler.WithResolvingModelHost(modelHost, modelDefinition, childModelType.Key, childModelHost =>
+                // these are hack due event propagation mis-disign
+                ModelTraverseService.OnModelProcessing += (node) =>
                 {
-                    var childModels =
-                        modelNode.GetChildModels(childModelType.Key);
+                    _activeModelNode = node;
+                };
 
-                    foreach (var childModel in childModels)
-                        ProcessModelDeployment(childModelHost, childModel);
-                });
+                ModelTraverseService.OnModelProcessed += (node) =>
+                {
+                    _activeModelNode = null;
+                };
+
+                ModelTraverseService.Traverse(modelHost, modelNode);
             }
         }
 
         private void RetractSite(object modelHost, ModelNode model)
         {
-            var siteDefinition = model.Value as SiteDefinition;
-            var modelHandler = ResolveModelHandler(siteDefinition.GetType());
+            // var siteDefinition = model.Value as SiteDefinition;
+            // var modelHandler = ResolveModelHandler(siteDefinition.GetType());
         }
 
         private void RetractWeb(object modelHost, ModelNode model)
         {
-            var webDefinition = model.Value as WebDefinition;
-            var modelHandler = ResolveModelHandler(webDefinition.GetType());
+            //var webDefinition = model.Value as WebDefinition;
+            //var modelHandler = ResolveModelHandler(webDefinition.GetType());
 
-            if (modelHandler == null && webDefinition.RequireSelfProcessing)
-                throw new ArgumentNullException(string.Format("Can't find model handler for type:[{0}] ", webDefinition.GetType()));
+            //if (modelHandler == null && webDefinition.RequireSelfProcessing)
+            //    throw new ArgumentNullException(string.Format("Can't find model handler for type:[{0}] ", webDefinition.GetType()));
 
-            modelHandler.RetractModel(modelHost, webDefinition);
+            //modelHandler.RetractModel(modelHost, webDefinition);
         }
 
         #endregion

@@ -6,8 +6,10 @@ using SPMeta2.CSOM.Common;
 using SPMeta2.CSOM.Extensions;
 using SPMeta2.CSOM.ModelHosts;
 using SPMeta2.Definitions;
+using SPMeta2.Definitions.Base;
 using SPMeta2.ModelHandlers;
 using SPMeta2.Models;
+using SPMeta2.Services;
 using SPMeta2.Syntax.Default;
 using SPMeta2.Utils;
 using System.Xml.Linq;
@@ -30,26 +32,28 @@ namespace SPMeta2.CSOM.ModelHandlers
 
             if (site != null && contentTypeModel != null)
             {
-                var context = site.Context;
                 var rootWeb = site.RootWeb;
+                var context = rootWeb.Context;
 
-                context.Load(rootWeb, w => w.ContentTypes);
-                context.Load(rootWeb, w => w.ServerRelativeUrl);
+                var id = contentTypeModel.GetContentTypeId();
 
-                context.ExecuteQuery();
-
-                var currentContentType = rootWeb.ContentTypes.FindByName(contentTypeModel.Name);
+                var currentContentType = rootWeb.ContentTypes.GetById(id);
+                context.ExecuteQueryWithTrace();
 
                 if (childModelType == typeof(ModuleFileDefinition))
                 {
+                    TraceService.Information((int)LogEventId.ModelProvisionCoreCall, "Resolving content type resource folder for ModuleFileDefinition");
+
                     var ctDocument = XDocument.Parse(currentContentType.SchemaXml);
                     var folderUrlNode = ctDocument.Descendants().FirstOrDefault(d => d.Name == "Folder");
 
                     var webRelativeFolderUrl = folderUrlNode.Attribute("TargetName").Value;
                     var serverRelativeFolderUrl = rootWeb.ServerRelativeUrl + "/" + webRelativeFolderUrl;
 
+                    TraceService.VerboseFormat((int)LogEventId.ModelProvisionCoreCall, "webRelativeFolderUrl is: [{0}]", webRelativeFolderUrl);
+
                     var ctFolder = rootWeb.GetFolderByServerRelativeUrl(serverRelativeFolderUrl);
-                    context.ExecuteQuery();
+                    context.ExecuteQueryWithTrace();
 
                     action(new FolderModelHost
                     {
@@ -62,7 +66,7 @@ namespace SPMeta2.CSOM.ModelHandlers
                 else
                 {
                     // ModelHostContext is a cheat for client OM
-                    // the issue is that having ContenType instance to work with FieldLinks is not enought - you ned RootWeb
+                    // the issue is that having ContenType instance to work with FieldLinks is not enought - you need RootWeb
                     // and RootWeb could be accessed only via Site
                     // so, somehow we need to pass this info to the model handler
 
@@ -73,11 +77,10 @@ namespace SPMeta2.CSOM.ModelHandlers
                     });
                 }
 
-                // doublt update to promote change tpo the list 
-                // have no idea why it does not work from the first time
-
+                TraceService.Information((int)LogEventId.ModelProvisionCoreCall, "Calling currentContentType.Update(true)");
                 currentContentType.Update(true);
-                context.ExecuteQuery();
+
+                context.ExecuteQueryWithTrace();
             }
             else
             {
@@ -85,55 +88,53 @@ namespace SPMeta2.CSOM.ModelHandlers
             }
         }
 
-
-        protected override void DeployModelInternal(object modelHost, DefinitionBase model)
+        public override void DeployModel(object modelHost, DefinitionBase model)
         {
             var siteModelHost = modelHost.WithAssertAndCast<SiteModelHost>("modelHost", value => value.RequireNotNull());
 
             var site = siteModelHost.HostSite;
             var contentTypeModel = model.WithAssertAndCast<ContentTypeDefinition>("model", value => value.RequireNotNull());
 
-            var context = site.Context;
             var rootWeb = site.RootWeb;
+            var context = rootWeb.Context;
 
-            var contentTypes = rootWeb.ContentTypes;
+            var contentTypeId = contentTypeModel.GetContentTypeId();
 
-            context.Load(rootWeb);
-            context.Load(contentTypes);
-
-            context.ExecuteQuery();
+            var tmp = rootWeb.ContentTypes.GetById(contentTypeId);
+            context.ExecuteQueryWithTrace();
 
             InvokeOnModelEvent(this, new ModelEventArgs
             {
                 CurrentModelNode = null,
                 Model = null,
                 EventType = ModelEventType.OnProvisioning,
-                Object = null,
+                Object = tmp,
                 ObjectType = typeof(ContentType),
                 ObjectDefinition = model,
                 ModelHost = modelHost
             });
+
             InvokeOnModelEvent<ContentTypeDefinition, ContentType>(null, ModelEventType.OnUpdating);
 
-            //var currentContentType = rootWeb.ContentTypes.FindByName(contentTypeModel.Name);
-            var contentTypeId = contentTypeModel.GetContentTypeId();
-            var currentContentType = contentTypes.FirstOrDefault(c => c.StringId.ToLower() == contentTypeId.ToLower());
+            ContentType currentContentType = null;
 
-            if (currentContentType == null)
+            if (tmp == null || tmp.ServerObjectIsNull == null || tmp.ServerObjectIsNull.Value)
             {
-                // here we have 2 cases
-                // (1) OOTB parent content types might be resolved by ID
-                // (2) custom content types have to be resolved by NAME as id is always different :(
-                //var parentContentType = rootWeb.ContentTypes.GetById(contentTypeModel.ParentContentTypeId);
+                TraceService.Information((int)LogEventId.ModelProvisionProcessingNewObject, "Processing new content type");
 
                 currentContentType = rootWeb.ContentTypes.Add(new ContentTypeCreationInformation
                 {
-                    //ParentContentType = parentContentType,
                     Name = contentTypeModel.Name,
                     Description = string.IsNullOrEmpty(contentTypeModel.Description) ? string.Empty : contentTypeModel.Description,
                     Group = contentTypeModel.Group,
                     Id = contentTypeId
                 });
+            }
+            else
+            {
+                TraceService.Information((int)LogEventId.ModelProvisionProcessingExistingObject, "Processing existing content type");
+
+                currentContentType = tmp;
             }
 
             currentContentType.Name = contentTypeModel.Name;
@@ -153,10 +154,10 @@ namespace SPMeta2.CSOM.ModelHandlers
                 ModelHost = modelHost
             });
 
+            TraceService.Information((int)LogEventId.ModelProvisionCoreCall, "Calling currentContentType.Update(true)");
             currentContentType.Update(true);
-            context.ExecuteQuery();
 
-
+            context.ExecuteQueryWithTrace();
         }
 
         public override void RetractModel(object modelHost, DefinitionBase model)
@@ -174,7 +175,7 @@ namespace SPMeta2.CSOM.ModelHandlers
             context.Load(rootWeb);
             context.Load(contentTypes);
 
-            context.ExecuteQuery();
+            context.ExecuteQueryWithTrace();
 
             var contentTypeId = contentTypeModel.GetContentTypeId();
 
@@ -183,8 +184,9 @@ namespace SPMeta2.CSOM.ModelHandlers
             if (currentContentType != null)
             {
                 currentContentType.DeleteObject();
-                context.ExecuteQuery();
+                context.ExecuteQueryWithTrace();
             }
         }
     }
+
 }

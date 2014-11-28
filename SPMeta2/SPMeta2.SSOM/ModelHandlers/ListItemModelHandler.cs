@@ -6,8 +6,13 @@ using System.Threading.Tasks;
 using Microsoft.SharePoint;
 using SPMeta2.Common;
 using SPMeta2.Definitions;
+using SPMeta2.Definitions.Base;
+using SPMeta2.Enumerations;
+using SPMeta2.Exceptions;
 using SPMeta2.ModelHandlers;
+using SPMeta2.Services;
 using SPMeta2.Utils;
+using SPMeta2.SSOM.ModelHosts;
 
 namespace SPMeta2.SSOM.ModelHandlers
 {
@@ -26,8 +31,10 @@ namespace SPMeta2.SSOM.ModelHandlers
 
         public override void DeployModel(object modelHost, DefinitionBase model)
         {
-            var list = modelHost.WithAssertAndCast<SPList>("modelHost", value => value.RequireNotNull());
+            var listModelHost = modelHost.WithAssertAndCast<ListModelHost>("modelHost", value => value.RequireNotNull());
             var listItemModel = model.WithAssertAndCast<ListItemDefinition>("model", value => value.RequireNotNull());
+
+            var list = listModelHost.HostList;
 
             DeployInternall(list, listItemModel);
         }
@@ -36,19 +43,27 @@ namespace SPMeta2.SSOM.ModelHandlers
         {
             if (IsDocumentLibray(list))
             {
-                throw new NotImplementedException("Please use ModuleFileDefinition to deploy files to the document libraries");
+                TraceService.Error((int)LogEventId.ModelProvisionCoreCall, "Please use ModuleFileDefinition to deploy files to the document libraries. Throwing SPMeta2NotImplementedException");
+
+                throw new SPMeta2NotImplementedException("Please use ModuleFileDefinition to deploy files to the document libraries");
             }
 
             EnsureListItem(list, listItemModel);
         }
 
-        private SPListItem EnsureListItem(SPList list, ListItemDefinition listItemModel)
+        protected SPListItem GetListItem(SPList list, ListItemDefinition listItemModel)
         {
             // TODO, lazy to query
             // BIG TODO, don't tell me, I know that
-            var currentItem = list.Items
+
+            return list.Items
                             .OfType<SPListItem>()
                             .FirstOrDefault(i => i.Title == listItemModel.Title);
+        }
+
+        private SPListItem EnsureListItem(SPList list, ListItemDefinition listItemModel)
+        {
+            var currentItem = GetListItem(list, listItemModel);
 
             InvokeOnModelEvent(this, new ModelEventArgs
             {
@@ -63,9 +78,11 @@ namespace SPMeta2.SSOM.ModelHandlers
 
             if (currentItem == null)
             {
+                TraceService.Information((int)LogEventId.ModelProvisionProcessingNewObject, "Processing new list item");
+
                 var newItem = list.AddItem();
 
-                newItem["Title"] = listItemModel.Title;
+                newItem[BuiltInInternalFieldNames.Title] = listItemModel.Title;
 
                 InvokeOnModelEvent(this, new ModelEventArgs
                 {
@@ -84,7 +101,9 @@ namespace SPMeta2.SSOM.ModelHandlers
             }
             else
             {
-                currentItem["Title"] = listItemModel.Title;
+                TraceService.Information((int)LogEventId.ModelProvisionProcessingExistingObject, "Processing existing list item");
+
+                currentItem[BuiltInInternalFieldNames.Title] = listItemModel.Title;
 
                 InvokeOnModelEvent(this, new ModelEventArgs
                 {
@@ -105,9 +124,10 @@ namespace SPMeta2.SSOM.ModelHandlers
 
         public override void WithResolvingModelHost(object modelHost, DefinitionBase model, Type childModelType, Action<object> action)
         {
-            var list = modelHost.WithAssertAndCast<SPList>("modelHost", value => value.RequireNotNull());
+            var listModelHost = modelHost.WithAssertAndCast<ListModelHost>("modelHost", value => value.RequireNotNull());
             var listItemModel = model.WithAssertAndCast<ListItemDefinition>("model", value => value.RequireNotNull());
 
+            var list = listModelHost.HostList;
             var item = EnsureListItem(list, listItemModel);
 
             if (childModelType == typeof(ListItemFieldValueDefinition))

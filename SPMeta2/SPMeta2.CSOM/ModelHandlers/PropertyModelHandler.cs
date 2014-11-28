@@ -1,7 +1,13 @@
-﻿using SPMeta2.CSOM.ModelHosts;
+﻿using SPMeta2.CSOM.Extensions;
+using SPMeta2.CSOM.ModelHosts;
 using SPMeta2.Definitions;
 using System;
+using SPMeta2.Definitions.Base;
+using SPMeta2.Services;
 using SPMeta2.Utils;
+using Microsoft.SharePoint.Client;
+using SPMeta2.Common;
+using SPMeta2.Exceptions;
 
 namespace SPMeta2.CSOM.ModelHandlers
 {
@@ -21,35 +27,132 @@ namespace SPMeta2.CSOM.ModelHandlers
 
         public override void DeployModel(object modelHost, DefinitionBase model)
         {
-            var propertyHost = modelHost.WithAssertAndCast<PropertyModelHost>("modelHost", value => value.RequireNotNull());
+            var properties = ExtractProperties(modelHost);
             var property = model.WithAssertAndCast<PropertyDefinition>("model", value => value.RequireNotNull());
 
-            ProcessProperty(propertyHost, property);
+            DeployProperty(modelHost, properties, property);
         }
 
-        private void ProcessProperty(PropertyModelHost host, PropertyDefinition property)
+        protected PropertyValues ExtractProperties(object modelHost)
         {
-            if (host.CurrentListItem != null)
-                ProcessListItemProperty(host.CurrentListItem, property);
-            else if (host.CurrentList != null)
-                ProcessListProperty(host.CurrentList, property);
-            else if (host.CurrentWeb != null)
-                ProcessWebProperty(host.CurrentWeb, property);
+            PropertyValues result = null;
+            ClientRuntimeContext context = null;
+
+            if (modelHost is SiteModelHost)
+            {
+                result = (modelHost as SiteModelHost).HostSite.RootWeb.AllProperties;
+                context = (modelHost as SiteModelHost).HostSite.RootWeb.Context;
+            }
+            else if (modelHost is WebModelHost)
+            {
+                result = (modelHost as WebModelHost).HostWeb.AllProperties;
+                context = (modelHost as WebModelHost).HostWeb.Context;
+            }
+            else if (modelHost is ListModelHost)
+            {
+                result = (modelHost as ListModelHost).HostList.RootFolder.Properties;
+                context = (modelHost as ListModelHost).HostList.RootFolder.Context;
+            }
+            else if (modelHost is FolderModelHost)
+            {
+                result = (modelHost as FolderModelHost).CurrentLibraryFolder.Properties;
+                context = (modelHost as FolderModelHost).CurrentLibraryFolder.Context;
+            }
+            else if (modelHost is ListItem)
+            {
+                // http://officespdev.uservoice.com/forums/224641-general/suggestions/6343086-expose-properties-property-for-microsoft-sharepo
+
+                throw new SPMeta2NotImplementedException("ListItem properties provision is not supported yet.");
+                //DeployProperty(host, host.CurrentListItem.all, property);
+            }
+            else if (modelHost is File)
+            {
+                // http://officespdev.uservoice.com/forums/224641-general/suggestions/6343087-expose-properties-property-for-microsoft-sharepo
+
+                throw new SPMeta2NotImplementedException("File properties provision is not supported yet.");
+                // DeployProperty(host, host.CurrentFile., property);
+            }
+            else
+            {
+                throw new SPMeta2NotImplementedException(string.Format("Model host [{0}] is not supported yet.", modelHost));
+            }
+
+
+            context.Load(result);
+            context.ExecuteQueryWithTrace();
+
+            return result;
         }
 
-        private void ProcessWebProperty(Microsoft.SharePoint.Client.Web web, Definitions.PropertyDefinition property)
+        protected virtual void DeployProperty(object modelHost, PropertyValues properties, PropertyDefinition property)
         {
-            web.AllProperties[property.Key] = property.Value;
-        }
+            var currentValue = properties.FieldValues.ContainsKey(property.Key) ? properties[property.Key] : null;
 
-        private void ProcessListProperty(Microsoft.SharePoint.Client.List list, Definitions.PropertyDefinition property)
-        {
-            list.RootFolder.Properties[property.Key] = property.Value;
-        }
+            InvokeOnModelEvent(this, new ModelEventArgs
+            {
+                CurrentModelNode = null,
+                Model = null,
+                EventType = ModelEventType.OnProvisioning,
+                Object = currentValue,
+                ObjectType = typeof(object),
+                ObjectDefinition = property,
+                ModelHost = modelHost
+            });
 
-        private void ProcessListItemProperty(Microsoft.SharePoint.Client.ListItem listItem, Definitions.PropertyDefinition property)
-        {
-            listItem[property.Key] = property.Value;
+            if (currentValue == null)
+            {
+                TraceService.Information((int)LogEventId.ModelProvisionProcessingNewObject, "Processing new property");
+
+                properties[property.Key] = property.Value;
+
+                InvokeOnModelEvent(this, new ModelEventArgs
+                {
+                    CurrentModelNode = null,
+                    Model = null,
+                    EventType = ModelEventType.OnProvisioned,
+                    Object = property.Value,
+                    ObjectType = typeof(object),
+                    ObjectDefinition = property,
+                    ModelHost = modelHost
+                });
+            }
+            else
+            {
+                TraceService.Information((int)LogEventId.ModelProvisionProcessingExistingObject, "Processing existing property");
+
+                if (property.Overwrite)
+                {
+                    TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "Overwrite = true. Overwriting property.");
+
+                    properties[property.Key] = property.Value;
+
+                    InvokeOnModelEvent(this, new ModelEventArgs
+                    {
+                        CurrentModelNode = null,
+                        Model = null,
+                        EventType = ModelEventType.OnProvisioned,
+                        Object = property.Value,
+                        ObjectType = typeof(object),
+                        ObjectDefinition = property,
+                        ModelHost = modelHost
+                    });
+                }
+                else
+                {
+                    TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "Overwrite = false. Skipping property.");
+
+                    InvokeOnModelEvent(this, new ModelEventArgs
+                    {
+                        CurrentModelNode = null,
+                        Model = null,
+                        EventType = ModelEventType.OnProvisioned,
+                        Object = currentValue,
+                        ObjectType = typeof(object),
+                        ObjectDefinition = property,
+                        ModelHost = modelHost
+                    });
+                }
+            }
         }
 
         #endregion

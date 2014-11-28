@@ -2,7 +2,9 @@
 using Microsoft.SharePoint;
 using SPMeta2.Common;
 using SPMeta2.Definitions;
+using SPMeta2.Definitions.Base;
 using SPMeta2.ModelHandlers;
+using SPMeta2.Services;
 using SPMeta2.SSOM.ModelHosts;
 using SPMeta2.Utils;
 
@@ -67,7 +69,7 @@ namespace SPMeta2.SSOM.ModelHandlers
             throw new Exception(string.Format("modelHost with type [{0}] is not supported.", modelHost.GetType()));
         }
 
-        protected override void DeployModelInternal(object modelHost, DefinitionBase model)
+        public override void DeployModel(object modelHost, DefinitionBase model)
         {
             var siteModelHost = modelHost.WithAssertAndCast<SiteModelHost>("modelHost", value => value.RequireNotNull());
             var site = siteModelHost.HostSite;
@@ -85,11 +87,15 @@ namespace SPMeta2.SSOM.ModelHandlers
                 currentGroup = site.RootWeb.SiteGroups[securityGroupModel.Name];
                 hasInitialGroup = true;
 
+                TraceService.Information((int)LogEventId.ModelProvisionProcessingExistingObject, "Processing existing security group");
+
             }
             catch (SPException)
             {
                 var ownerUser = EnsureOwnerUser(web, securityGroupModel);
                 var defaultUser = EnsureDefaultUser(web, securityGroupModel);
+
+                TraceService.Information((int)LogEventId.ModelProvisionProcessingNewObject, "Processing new security group");
 
                 web.SiteGroups.Add(securityGroupModel.Name, ownerUser, defaultUser, securityGroupModel.Description);
                 currentGroup = web.SiteGroups[securityGroupModel.Name];
@@ -122,6 +128,7 @@ namespace SPMeta2.SSOM.ModelHandlers
                 });
             }
 
+            currentGroup.OnlyAllowMembersViewMembership = securityGroupModel.OnlyAllowMembersViewMembership;
             currentGroup.Owner = EnsureOwnerUser(web, securityGroupModel);
             currentGroup.Description = securityGroupModel.Description;
 

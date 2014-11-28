@@ -2,8 +2,11 @@
 using Microsoft.SharePoint.Client;
 using SPMeta2.Common;
 using SPMeta2.CSOM.Common;
+using SPMeta2.CSOM.Extensions;
 using SPMeta2.Definitions;
+using SPMeta2.Definitions.Base;
 using SPMeta2.ModelHandlers;
+using SPMeta2.Services;
 using SPMeta2.Utils;
 
 namespace SPMeta2.CSOM.ModelHandlers
@@ -15,7 +18,48 @@ namespace SPMeta2.CSOM.ModelHandlers
             get { return typeof(ContentTypeFieldLinkDefinition); }
         }
 
-        protected override void DeployModelInternal(object modelHost, DefinitionBase model)
+        private Field FindExistingSiteField(Web rootWeb, Guid id)
+        {
+            TraceService.VerboseFormat((int)LogEventId.ModelProvisionCoreCall, "Finding site field by ID: [{0}]", id);
+
+            var context = rootWeb.Context;
+            var scope = new ExceptionHandlingScope(context);
+
+            Field field = null;
+
+            using (scope.StartScope())
+            {
+                using (scope.StartTry())
+                {
+                    rootWeb.AvailableFields.GetById(id);
+                }
+
+                using (scope.StartCatch())
+                {
+
+                }
+            }
+
+            context.ExecuteQueryWithTrace();
+
+            if (!scope.HasException)
+            {
+                TraceService.VerboseFormat((int)LogEventId.ModelProvisionCoreCall, "Found site field by ID: [{0}]", id);
+
+                field = rootWeb.AvailableFields.GetById(id);
+                context.Load(field);
+
+                context.ExecuteQueryWithTrace();
+            }
+            else
+            {
+                TraceService.ErrorFormat((int)LogEventId.ModelProvisionCoreCall, "Cannot find site field by ID: [{0}]. Provision might fatally fail.", id);
+            }
+
+            return field;
+        }
+
+        public override void DeployModel(object modelHost, DefinitionBase model)
         {
             var modelHostWrapper = modelHost.WithAssertAndCast<ModelHostContext>("modelHost", value => value.RequireNotNull());
             var contentTypeFieldLinkModel = model.WithAssertAndCast<ContentTypeFieldLinkDefinition>("model", value => value.RequireNotNull());
@@ -24,20 +68,21 @@ namespace SPMeta2.CSOM.ModelHandlers
             var rootWeb = site.RootWeb;
             var contentType = modelHostWrapper.ContentType;
 
-            var fields = rootWeb.AvailableFields;
+            var context = contentType.Context;
 
-            var context = site.Context;
+            TraceService.VerboseFormat((int)LogEventId.ModelProvisionCoreCall, "Getting content type field link by ID: [{0}]", contentTypeFieldLinkModel.FieldId);
 
-            // TODO, ad better validation
+            var tmp = contentType.FieldLinks.GetById(contentTypeFieldLinkModel.FieldId);
+            context.ExecuteQueryWithTrace();
 
-            var fieldLinks = contentType.FieldLinks;
+            FieldLink fieldLink = null;
 
-            context.Load(fields);
-            context.Load(fieldLinks);
+            if (tmp != null && tmp.ServerObjectIsNull.HasValue && !tmp.ServerObjectIsNull.Value)
+            {
+                TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "Found existing field link");
 
-            context.ExecuteQuery();
-
-            var fieldLink = FindContentTypeFieldLink(fieldLinks, contentTypeFieldLinkModel.FieldId);
+                fieldLink = tmp;
+            }
 
             InvokeOnModelEvent(this, new ModelEventArgs
             {
@@ -52,12 +97,18 @@ namespace SPMeta2.CSOM.ModelHandlers
 
             if (fieldLink == null)
             {
-                var targetField = FindField(fields, contentTypeFieldLinkModel.FieldId);
+                TraceService.Information((int)LogEventId.ModelProvisionProcessingNewObject, "Processing new content type field link");
 
-                fieldLink = fieldLinks.Add(new FieldLinkCreationInformation
+                var targetField = FindExistingSiteField(rootWeb, contentTypeFieldLinkModel.FieldId);
+
+                fieldLink = contentType.FieldLinks.Add(new FieldLinkCreationInformation
                 {
                     Field = targetField
                 });
+            }
+            else
+            {
+                TraceService.Information((int)LogEventId.ModelProvisionProcessingExistingObject, "Processing existing content type field link");
             }
 
             InvokeOnModelEvent(this, new ModelEventArgs
@@ -72,29 +123,7 @@ namespace SPMeta2.CSOM.ModelHandlers
             });
 
             contentType.Update(true);
-            context.ExecuteQuery();
-        }
-
-        private Field FindField(FieldCollection fields, Guid guid)
-        {
-            foreach (var field in fields)
-            {
-                if (field.Id == guid)
-                    return field;
-            }
-
-            return null;
-        }
-
-        private FieldLink FindContentTypeFieldLink(FieldLinkCollection fieldLinks, Guid guid)
-        {
-            foreach (var fieldlink in fieldLinks)
-            {
-                if (fieldlink.Id == guid)
-                    return fieldlink;
-            }
-
-            return null;
+            context.ExecuteQueryWithTrace();
         }
     }
 }

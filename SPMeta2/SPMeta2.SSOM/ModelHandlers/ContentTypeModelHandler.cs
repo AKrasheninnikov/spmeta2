@@ -1,8 +1,11 @@
 ﻿using System;
+using System.Linq;
 using Microsoft.SharePoint;
 using SPMeta2.Common;
 using SPMeta2.Definitions;
+using SPMeta2.Definitions.Base;
 using SPMeta2.ModelHandlers;
+using SPMeta2.Services;
 using SPMeta2.SSOM.ModelHosts;
 using SPMeta2.Syntax.Default;
 using SPMeta2.Utils;
@@ -54,7 +57,7 @@ namespace SPMeta2.SSOM.ModelHandlers
             }
         }
 
-        protected override void DeployModelInternal(object modelHost, DefinitionBase model)
+        public override void DeployModel(object modelHost, DefinitionBase model)
         {
             var siteModelHost = modelHost.WithAssertAndCast<SiteModelHost>("modelHost", value => value.RequireNotNull());
             var contentTypeModel = model.WithAssertAndCast<ContentTypeDefinition>("model", value => value.RequireNotNull());
@@ -67,7 +70,15 @@ namespace SPMeta2.SSOM.ModelHandlers
             {
                 var contentTypeId = new SPContentTypeId(contentTypeModel.GetContentTypeId());
 
+                // by ID, by Name
                 var targetContentType = tmpRootWeb.ContentTypes[contentTypeId];
+
+                if (targetContentType == null)
+                {
+                    targetContentType = tmpRootWeb.ContentTypes
+                                                  .OfType<SPContentType>()
+                                                  .FirstOrDefault(f => f.Name.ToUpper() == contentTypeModel.Name.ToUpper());
+                }
 
                 InvokeOnModelEvent(this, new ModelEventArgs
                 {
@@ -81,10 +92,17 @@ namespace SPMeta2.SSOM.ModelHandlers
                 });
 
                 if (targetContentType == null)
-                    targetContentType = tmpRootWeb
-                                            .ContentTypes
-                                            .Add(new SPContentType(contentTypeId, tmpRootWeb.ContentTypes, contentTypeModel.Name));
+                {
+                    TraceService.Information((int)LogEventId.ModelProvisionProcessingNewObject, "Processing new content type");
 
+                    targetContentType = tmpRootWeb
+                        .ContentTypes
+                        .Add(new SPContentType(contentTypeId, tmpRootWeb.ContentTypes, contentTypeModel.Name));
+                }
+                else
+                {
+                    TraceService.Information((int)LogEventId.ModelProvisionProcessingExistingObject, "Processing existing content type");
+                }
 
                 targetContentType.Name = contentTypeModel.Name;
                 targetContentType.Group = contentTypeModel.Group;
@@ -102,8 +120,9 @@ namespace SPMeta2.SSOM.ModelHandlers
                     ObjectDefinition = contentTypeModel,
                     ModelHost = modelHost
                 });
-                
-                targetContentType.Update();
+
+                TraceService.Information((int)LogEventId.ModelProvisionCoreCall, "Calling currentContentType.Update(true)");
+                targetContentType.UpdateIncludingSealedAndReadOnly(true);
 
                 tmpRootWeb.Update();
             }
