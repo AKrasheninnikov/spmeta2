@@ -1,8 +1,11 @@
 ﻿using System;
 using Microsoft.SharePoint.Client;
+using SPMeta2.CSOM.Extensions;
 using SPMeta2.CSOM.ModelHosts;
 using SPMeta2.Definitions;
+using SPMeta2.Definitions.Base;
 using SPMeta2.ModelHandlers;
+using SPMeta2.Services;
 using SPMeta2.Utils;
 using SPMeta2.Common;
 
@@ -11,6 +14,8 @@ namespace SPMeta2.CSOM.ModelHandlers
     public class ModuleFileModelHandler : CSOMModelHandlerBase
     {
         #region properties
+
+        private double ContentStreamFileSize = 1024 * 1024 * 1.5;
 
         public override Type TargetType
         {
@@ -48,12 +53,12 @@ namespace SPMeta2.CSOM.ModelHandlers
                 var fileListItem = file.ListItemAllFields;
 
                 context.Load(fileListItem, i => i.Id, i => i.ParentList);
-                context.ExecuteQuery();
+                context.ExecuteQueryWithTrace();
 
                 var list = fileListItem.ParentList;
                 var item = list.GetItemById(fileListItem.Id);
 
-                context.ExecuteQuery();
+                context.ExecuteQueryWithTrace();
 
                 var listItemPropertyHost = new ListItemFieldValueModelHost
                 {
@@ -64,7 +69,7 @@ namespace SPMeta2.CSOM.ModelHandlers
 
                 item.Update();
 
-                context.ExecuteQuery();
+                context.ExecuteQueryWithTrace();
             }
             else if (childModelType == typeof(PropertyDefinition))
             {
@@ -75,75 +80,110 @@ namespace SPMeta2.CSOM.ModelHandlers
 
                 action(propModelHost);
 
-                context.ExecuteQuery();
+                context.ExecuteQueryWithTrace();
             }
             else
             {
                 action(file);
 
-                context.ExecuteQuery();
+                context.ExecuteQueryWithTrace();
             }
         }
 
-        //private File GetFile()
-        //{
-
-        //}
-
-        private void WithSafeFileOperation(List list, File file, Func<File, File> action)
+        public static void WithSafeFileOperation(List list, File file, Func<File, File> action)
         {
-            var context = file.Context;
+            WithSafeFileOperation(list, file, action, null);
+        }
 
-            context.Load(file, f => f.Exists);
-            context.ExecuteQuery();
+        public static void WithSafeFileOperation(List list, File file, Func<File, File> action, Action<File> onCreated)
+        {
+            var context = list.Context;
 
-            if (file.Exists)
+            context.Load(list, l => l.EnableMinorVersions);
+            context.Load(list, l => l.EnableModeration);
+            context.ExecuteQueryWithTrace();
+
+            if (file != null)
             {
-                context.Load(file, f => f.CheckOutType);
-                context.Load(file, f => f.Level);
+                context.Load(file, f => f.Exists);
+                context.ExecuteQueryWithTrace();
 
-                context.ExecuteQuery();
+                if (file.Exists)
+                {
+                    context.Load(file, f => f.CheckOutType);
+                    context.Load(file, f => f.CheckedOutByUser);
+                    context.Load(file, f => f.Level);
+
+                    context.ExecuteQueryWithTrace();
+                }
             }
 
-
-            // big todo with correct update and punblishing
-            // get prev SPMeta2 impl for publishing pages
-            if (list != null && (file.Exists && file.CheckOutType != CheckOutType.None))
+            if (list != null && file != null && (file.Exists && file.CheckOutType != CheckOutType.None))
                 file.UndoCheckOut();
 
-            if (list != null && (list.EnableMinorVersions || list.EnableVersioning) && (file.Exists && file.Level == FileLevel.Published))
+            if (list != null && file != null && (list.EnableMinorVersions) && (file.Exists && file.Level == FileLevel.Published))
                 file.UnPublish("Provision");
 
-            if (list != null && (file.Exists && file.CheckOutType == CheckOutType.None))
+            if (list != null && file != null && (file.Exists && file.CheckOutType == CheckOutType.None))
                 file.CheckOut();
 
-            context.ExecuteQuery();
+            context.ExecuteQueryWithTrace();
 
             var spFile = action(file);
-
-            context.ExecuteQuery();
+            context.ExecuteQueryWithTrace();
 
             context.Load(spFile, f => f.Exists);
-            context.ExecuteQuery();
+            context.ExecuteQueryWithTrace();
 
             if (spFile.Exists)
             {
+                if (onCreated != null)
+                    onCreated(spFile);
+
                 context.Load(spFile, f => f.CheckOutType);
                 context.Load(spFile, f => f.Level);
 
-                context.ExecuteQuery();
+                context.ExecuteQueryWithTrace();
             }
 
-            if (list != null && (spFile.Exists && spFile.CheckOutType != CheckOutType.None))
-                spFile.CheckIn("", CheckinType.MajorCheckIn);
+            if (list != null && spFile != null && (spFile.Exists && spFile.CheckOutType != CheckOutType.None))
+                spFile.CheckIn("Provision", CheckinType.MajorCheckIn);
 
-            if (list != null && (list.EnableMinorVersions || list.EnableVersioning))
+            if (list != null && spFile != null && (list.EnableMinorVersions))
                 spFile.Publish("Provision");
 
-            if (list != null && (list.EnableModeration))
+            if (list != null && spFile != null && (list.EnableModeration))
                 spFile.Approve("Provision");
 
-            context.ExecuteQuery();
+            context.ExecuteQueryWithTrace();
+        }
+
+        protected File GetFile(FolderModelHost folderHost, ModuleFileDefinition moduleFile)
+        {
+            var context = folderHost.CurrentLibraryFolder.Context;
+
+            var web = folderHost.CurrentWeb;
+            var list = folderHost.CurrentList;
+            var folder = folderHost.CurrentLibraryFolder;
+
+            context.Load(folder, f => f.ServerRelativeUrl);
+            context.ExecuteQueryWithTrace();
+
+            if (list != null)
+            {
+                context.Load(list, l => l.EnableMinorVersions);
+                context.Load(list, l => l.EnableVersioning);
+                context.Load(list, l => l.EnableModeration);
+
+                context.ExecuteQueryWithTrace();
+            }
+
+            var file = web.GetFileByServerRelativeUrl(GetSafeFileUrl(folder, moduleFile));
+
+            context.Load(file, f => f.Exists);
+            context.ExecuteQueryWithTrace();
+
+            return file;
         }
 
         private File ProcessFile(FolderModelHost folderHost, ModuleFileDefinition moduleFile)
@@ -155,7 +195,7 @@ namespace SPMeta2.CSOM.ModelHandlers
             var folder = folderHost.CurrentLibraryFolder;
 
             context.Load(folder, f => f.ServerRelativeUrl);
-            context.ExecuteQuery();
+            context.ExecuteQueryWithTrace();
 
             if (list != null)
             {
@@ -163,13 +203,13 @@ namespace SPMeta2.CSOM.ModelHandlers
                 context.Load(list, l => l.EnableVersioning);
                 context.Load(list, l => l.EnableModeration);
 
-                context.ExecuteQuery();
+                context.ExecuteQueryWithTrace();
             }
 
             var file = web.GetFileByServerRelativeUrl(GetSafeFileUrl(folder, moduleFile));
 
             context.Load(file, f => f.Exists);
-            context.ExecuteQuery();
+            context.ExecuteQueryWithTrace();
 
             InvokeOnModelEvent<ModuleFileDefinition, File>(file, ModelEventType.OnUpdating);
 
@@ -184,7 +224,6 @@ namespace SPMeta2.CSOM.ModelHandlers
                 ModelHost = folderHost
             });
 
-
             WithSafeFileOperation(list, file, f =>
             {
                 var fileName = moduleFile.FileName;
@@ -193,18 +232,28 @@ namespace SPMeta2.CSOM.ModelHandlers
                 var fileCreatingInfo = new FileCreationInformation
                 {
                     Url = fileName,
-                    Content = fileContent,
                     Overwrite = file.Exists
                 };
 
-                return folder.Files.Add(fileCreatingInfo);
+                if (fileContent.Length < ContentStreamFileSize)
+                {
+                    TraceService.VerboseFormat((int)LogEventId.ModelProvisionCoreCall, "Using fileCreatingInfo.Content for small file less than: [{0}]", ContentStreamFileSize);
+                    fileCreatingInfo.Content = fileContent;
+                }
+                else
+                {
+                    TraceService.VerboseFormat((int)LogEventId.ModelProvisionCoreCall, "Using fileCreatingInfo.ContentStream for big file more than: [{0}]", ContentStreamFileSize);
+                    fileCreatingInfo.ContentStream = new System.IO.MemoryStream(fileContent);
+                }
 
+                TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "Overwriting file");
+                return folder.Files.Add(fileCreatingInfo);
             });
 
             var resultFile = web.GetFileByServerRelativeUrl(GetSafeFileUrl(folder, moduleFile));
 
             context.Load(resultFile, f => f.Exists);
-            context.ExecuteQuery();
+            context.ExecuteQueryWithTrace();
 
             InvokeOnModelEvent(this, new ModelEventArgs
             {

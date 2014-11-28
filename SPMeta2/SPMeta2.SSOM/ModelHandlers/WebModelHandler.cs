@@ -3,7 +3,9 @@ using Microsoft.SharePoint;
 using Microsoft.SharePoint.Utilities;
 using SPMeta2.Common;
 using SPMeta2.Definitions;
+using SPMeta2.Definitions.Base;
 using SPMeta2.ModelHandlers;
+using SPMeta2.Services;
 using SPMeta2.SSOM.ModelHosts;
 using SPMeta2.Utils;
 
@@ -18,7 +20,7 @@ namespace SPMeta2.SSOM.ModelHandlers
             get { return typeof(WebDefinition); }
         }
 
-        protected override void DeployModelInternal(object modelHost, DefinitionBase model)
+        public override void DeployModel(object modelHost, DefinitionBase model)
         {
             var webModel = model.WithAssertAndCast<WebDefinition>("model", value => value.RequireNotNull());
             var parentHost = modelHost;
@@ -84,6 +86,8 @@ namespace SPMeta2.SSOM.ModelHandlers
                 {
                     HostWeb = currentWeb
                 });
+
+                currentWeb.Update();
             }
         }
 
@@ -95,7 +99,7 @@ namespace SPMeta2.SSOM.ModelHandlers
             return currentWeb;
         }
 
-        private SPWeb GetOrCreateWeb(SPWeb parentWeb, WebDefinition webModel)
+        protected SPWeb GetOrCreateWeb(SPWeb parentWeb, WebDefinition webModel)
         {
             var webUrl = webModel.Url;
             var webDescription = string.IsNullOrEmpty(webModel.Description) ? String.Empty : webModel.Description;
@@ -104,6 +108,8 @@ namespace SPMeta2.SSOM.ModelHandlers
 
             if (!currentWeb.Exists)
             {
+                TraceService.Information((int)LogEventId.ModelProvisionProcessingNewObject, "Processing new web");
+
                 InvokeOnModelEvent(this, new ModelEventArgs
                 {
                     CurrentModelNode = null,
@@ -125,6 +131,11 @@ namespace SPMeta2.SSOM.ModelHandlers
             }
             else
             {
+                TraceService.Information((int)LogEventId.ModelProvisionProcessingExistingObject, "Current web is not null. Updating Title/Description.");
+
+                currentWeb.Title = webModel.Title;
+                currentWeb.Description = webModel.Description ?? string.Empty;
+
                 InvokeOnModelEvent(this, new ModelEventArgs
                 {
                     CurrentModelNode = null,
@@ -135,6 +146,9 @@ namespace SPMeta2.SSOM.ModelHandlers
                     ObjectDefinition = webModel,
                     ModelHost = webModel
                 });
+
+                TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "currentWeb.Update()");
+                currentWeb.Update();
             }
 
             return currentWeb;
