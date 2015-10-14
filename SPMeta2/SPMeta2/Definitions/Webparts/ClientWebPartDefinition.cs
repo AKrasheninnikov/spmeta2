@@ -2,11 +2,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
 using SPMeta2.Attributes;
 using SPMeta2.Attributes.Regression;
 using SPMeta2.Definitions.Base;
 using SPMeta2.Utils;
+using System.Runtime.Serialization;
 
 namespace SPMeta2.Definitions.Webparts
 {
@@ -20,18 +21,34 @@ namespace SPMeta2.Definitions.Webparts
     [DefaultParentHost(typeof(WebPartPageDefinition))]
 
     [Serializable]
+    [DataContract]
+
+    [ExpectManyInstances]
     public class ClientWebPartDefinition : WebPartDefinition
     {
         #region properties
 
+        [ExpectRequired]
+        [DataMember]
         public Guid FeatureId { get; set; }
-        public Guid ProductId { get; set; }
+
+        [ExpectRequired]
+        [DataMember]
+        public Guid? ProductId { get; set; }
+
+        // Remoed ExpectRequired
+        // Enhance 'ClientWebPart' provision - ProductWebId should be current web by default #623
+        // https://github.com/SubPointSolutions/spmeta2/issues/623
+        // [ExpectRequired]
+
+        [DataMember]
         public Guid ProductWebId { get; set; }
 
+        [ExpectRequired]
+        [DataMember]
         public string WebPartName { get; set; }
 
         #endregion
-
 
         #region methods
 

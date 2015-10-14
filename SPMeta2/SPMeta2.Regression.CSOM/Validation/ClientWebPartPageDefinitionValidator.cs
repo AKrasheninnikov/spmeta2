@@ -1,17 +1,13 @@
-﻿using System;
-using System.Linq;
+﻿using System.Linq;
 using Microsoft.SharePoint.Client;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SPMeta2.CSOM.Extensions;
+using SPMeta2.Containers.Assertion;
 using SPMeta2.CSOM.ModelHandlers;
 using SPMeta2.Definitions;
-using SPMeta2.Definitions.Base;
-using SPMeta2.Regression.Utils;
 using SPMeta2.Utils;
 using SPMeta2.CSOM.ModelHosts;
 using System.Text;
+using SPMeta2.CSOM.Extensions;
 using SPMeta2.Syntax.Default.Utils;
-using SPMeta2.Regression.Assertion;
 
 namespace SPMeta2.Regression.CSOM.Validation
 {
@@ -24,18 +20,18 @@ namespace SPMeta2.Regression.CSOM.Validation
             var folderModelHost = modelHost.WithAssertAndCast<FolderModelHost>("modelHost", value => value.RequireNotNull());
             var definition = model.WithAssertAndCast<WebPartPageDefinition>("model", value => value.RequireNotNull());
 
-            var folder = folderModelHost.CurrentLibraryFolder;
+            var folder = folderModelHost.CurrentListFolder;
             var context = folder.Context;
 
             var pageName = GetSafeWebPartPageFileName(definition);
-            var pageFile = GetCurrentWebPartPage(folderModelHost.CurrentList, folder, pageName);
+            var pageFile = GetCurrentWebPartPageFile(folderModelHost.CurrentList, folder, pageName);
 
             var spObject = pageFile.ListItemAllFields;
 
             context.Load(spObject);
             context.Load(spObject, s => s.File);
 
-            context.ExecuteQuery();
+            context.ExecuteQueryWithTrace();
 
             var assert = ServiceFactory.AssertService
                                      .NewAssert(definition, spObject)

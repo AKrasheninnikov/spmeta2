@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Linq;
 using Microsoft.SharePoint.Client;
+using SPMeta2.Containers.Assertion;
 using SPMeta2.Definitions;
 using SPMeta2.Definitions.Fields;
-using SPMeta2.Regression.Assertion;
 using SPMeta2.Regression.CSOM.Utils;
 using SPMeta2.Utils;
 
@@ -37,14 +37,18 @@ namespace SPMeta2.Regression.CSOM.Validation.Fields
             typedFieldAssert.ShouldBeEqual(m => m.DateFormat, o => o.GetDateFormatString());
 
             typedFieldAssert.ShouldBeEqual(m => m.OutputType, o => o.GetOutputType());
-            typedFieldAssert.ShouldBeEqual(m => m.ShowAsPercentage, o => o.GetShowAsPercentage());
+            //typedFieldAssert.ShouldBeEqual(m => m.ShowAsPercentage, o => o.GetShowAsPercentage());
             typedFieldAssert.ShouldBeEqual(m => m.DisplayFormat, o => o.GetDisplayFormatString());
+
+            if (typedDefinition.ShowAsPercentage.HasValue)
+                typedFieldAssert.ShouldBeEqual(m => m.ShowAsPercentage, o => o.GetShowAsPercentage());
+            else
+                typedFieldAssert.SkipProperty(m => m.ShowAsPercentage, "ShowAsPercentage is NULL. Skipping.");
+
 
             // formula
             typedFieldAssert.ShouldBeEqual(m => m.Formula, o => o.Formula);
-            typedFieldAssert.ShouldBeEqual(m => m.ValidationFormula, o => o.ValidationFormula);
-            typedFieldAssert.ShouldBeEqual(m => m.ValidationMessage, o => o.ValidationMessage);
-
+    
             // field refs
             if (typedDefinition.FieldReferences.Count > 0)
             {

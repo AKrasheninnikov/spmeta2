@@ -1,23 +1,28 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using Microsoft.Office.SecureStoreService.Server;
+using Microsoft.Office.Server.Audience;
+using Microsoft.Office.Server.Search.Portability;
 using Microsoft.SharePoint;
 using Microsoft.SharePoint.Administration;
 using Microsoft.SharePoint.Publishing.Navigation;
 using Microsoft.SharePoint.Taxonomy;
 using Microsoft.SharePoint.WebPartPages;
+using Microsoft.SharePoint.WorkflowServices;
+using SPMeta2.Containers.Consts;
 using SPMeta2.Containers.Services;
 using SPMeta2.Containers.Utils;
 using SPMeta2.ModelHandlers;
 using SPMeta2.Models;
 using SPMeta2.Regression.CSOM.Validation.Webparts;
-using SPMeta2.Regression.Runners.Consts;
 using SPMeta2.Regression.SSOM;
 using SPMeta2.Regression.SSOM.Standard.Validation;
 using SPMeta2.SSOM.ModelHosts;
 using SPMeta2.SSOM.Services;
 using SPMeta2.SSOM.Standard.ModelHandlers.Webparts;
 using SPMeta2.Utils;
+using SPMeta2.Services.Impl;
 
 namespace SPMeta2.Containers.SSOM
 {
@@ -42,6 +47,9 @@ namespace SPMeta2.Containers.SSOM
             _provisionService = new SSOMProvisionService();
             _validationService = new SSOMValidationService();
 
+            // TODO, setup a high level validation registration
+            _provisionService.PreDeploymentServices.Add(new DefaultRequiredPropertiesValidationService());
+
             var ssomStandartAsm = typeof(ContactFieldControlModelHandler).Assembly;
 
             foreach (var handlerType in ReflectionUtils.GetTypesFromAssembly<ModelHandlerBase>(ssomStandartAsm))
@@ -51,6 +59,32 @@ namespace SPMeta2.Containers.SSOM
 
             foreach (var handlerType in ReflectionUtils.GetTypesFromAssembly<ModelHandlerBase>(ssomStandartValidationAsm))
                 _validationService.RegisterModelHandler(Activator.CreateInstance(handlerType) as ModelHandlerBase);
+
+            _provisionService.OnModelNodeProcessing += (sender, args) =>
+            {
+                Trace.WriteLine(
+                    string.Format("Processing: [{0}/{1}] - [{2:0} %] - [{3}] [{4}]",
+                    new object[] {
+                                  args.ProcessedModelNodeCount,
+                                  args.TotalModelNodeCount,
+                                  100d * (double)args.ProcessedModelNodeCount / (double)args.TotalModelNodeCount,
+                                  args.CurrentNode.Value.GetType().Name,
+                                  args.CurrentNode.Value
+                                  }));
+            };
+
+            _provisionService.OnModelNodeProcessed += (sender, args) =>
+            {
+                Trace.WriteLine(
+                   string.Format("Processed: [{0}/{1}] - [{2:0} %] - [{3}] [{4}]",
+                   new object[] {
+                                  args.ProcessedModelNodeCount,
+                                  args.TotalModelNodeCount,
+                                  100d * (double)args.ProcessedModelNodeCount / (double)args.TotalModelNodeCount,
+                                  args.CurrentNode.Value.GetType().Name,
+                                  args.CurrentNode.Value
+                                  }));
+            };
         }
 
         private void LoadEnvironmentConfig()
@@ -83,6 +117,13 @@ namespace SPMeta2.Containers.SSOM
             var publishing = typeof(WebNavigationSettings);
 
             var tax = typeof(TaxonomyField);
+            var wf = typeof(WorkflowDefinition);
+
+            var secureStore = typeof(ISecureStore);
+
+            var search = typeof(SearchConfigurationPortability);
+
+            var up = typeof(Audience);
 
             return base.ResolveFullTypeName(typeName, assemblyName);
         }
@@ -97,8 +138,11 @@ namespace SPMeta2.Containers.SSOM
             {
                 WithSSOMFarmContext(farm =>
                 {
-                    _provisionService.DeployModel(FarmModelHost.FromFarm(farm), model);
-                    _validationService.DeployModel(FarmModelHost.FromFarm(farm), model);
+                    if (EnableDefinitionProvision)
+                        _provisionService.DeployModel(FarmModelHost.FromFarm(farm), model);
+
+                    if (EnableDefinitionValidation)
+                        _validationService.DeployModel(FarmModelHost.FromFarm(farm), model);
                 });
             }
         }
@@ -113,9 +157,11 @@ namespace SPMeta2.Containers.SSOM
                 {
                     WithSSOMWebApplicationContext(webAppUrl, webApp =>
                     {
+                        if (EnableDefinitionProvision)
+                            _provisionService.DeployModel(WebApplicationModelHost.FromWebApplication(webApp), model);
 
-                        _provisionService.DeployModel(WebApplicationModelHost.FromWebApplication(webApp), model);
-                        _validationService.DeployModel(WebApplicationModelHost.FromWebApplication(webApp), model);
+                        if (EnableDefinitionValidation)
+                            _validationService.DeployModel(WebApplicationModelHost.FromWebApplication(webApp), model);
 
                     });
                 }
@@ -132,8 +178,11 @@ namespace SPMeta2.Containers.SSOM
                 {
                     WithSSOMSiteAndWebContext(siteUrl, (site, web) =>
                     {
-                        _provisionService.DeployModel(SiteModelHost.FromSite(site), model);
-                        _validationService.DeployModel(SiteModelHost.FromSite(site), model);
+                        if (EnableDefinitionProvision)
+                            _provisionService.DeployModel(SiteModelHost.FromSite(site), model);
+
+                        if (EnableDefinitionValidation)
+                            _validationService.DeployModel(SiteModelHost.FromSite(site), model);
                     });
                 }
             }
@@ -149,8 +198,31 @@ namespace SPMeta2.Containers.SSOM
                 {
                     WithSSOMSiteAndWebContext(webUrl, (site, web) =>
                     {
-                        _provisionService.DeployModel(WebModelHost.FromWeb(web), model);
-                        _validationService.DeployModel(WebModelHost.FromWeb(web), model);
+                        if (EnableDefinitionProvision)
+                            _provisionService.DeployModel(WebModelHost.FromWeb(web), model);
+
+                        if (EnableDefinitionValidation)
+                            _validationService.DeployModel(WebModelHost.FromWeb(web), model);
+                    });
+                }
+            }
+        }
+
+        public override void DeployListModel(ModelNode model)
+        {
+            foreach (var webUrl in WebUrls)
+            {
+                Trace.WriteLine(string.Format("[INF]    Running on web: [{0}]", webUrl));
+
+                for (var provisionGeneration = 0; provisionGeneration < ProvisionGenerationCount; provisionGeneration++)
+                {
+                    WithSSOMSiteAndWebContext(webUrl, (site, web) =>
+                    {
+                        if (EnableDefinitionProvision)
+                            _provisionService.DeployModel(WebModelHost.FromWeb(web), model);
+
+                        if (EnableDefinitionValidation)
+                            _validationService.DeployModel(WebModelHost.FromWeb(web), model);
                     });
                 }
             }
@@ -160,21 +232,21 @@ namespace SPMeta2.Containers.SSOM
 
         #region utils
 
-        private void WithSSOMWebApplicationContext(string webAppUrl, Action<SPWebApplication> action)
+        public void WithSSOMWebApplicationContext(string webAppUrl, Action<SPWebApplication> action)
         {
             var webApp = SPWebApplication.Lookup(new Uri(webAppUrl));
 
             action(webApp);
         }
 
-        private void WithSSOMFarmContext(Action<SPFarm> action)
+        public void WithSSOMFarmContext(Action<SPFarm> action)
         {
             var farm = SPFarm.Local;
 
             action(farm);
         }
 
-        private void WithSSOMSiteAndWebContext(string siteUrl, Action<SPSite, SPWeb> action)
+        public void WithSSOMSiteAndWebContext(string siteUrl, Action<SPSite, SPWeb> action)
         {
             using (var site = new SPSite(siteUrl))
             {

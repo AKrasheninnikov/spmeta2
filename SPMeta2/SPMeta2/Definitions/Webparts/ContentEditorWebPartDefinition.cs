@@ -2,11 +2,13 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
 using SPMeta2.Attributes;
 using SPMeta2.Attributes.Regression;
 using SPMeta2.Definitions.Base;
 using SPMeta2.Utils;
+using System.Runtime.Serialization;
+using SPMeta2.Attributes.Capabilities;
 
 namespace SPMeta2.Definitions.Webparts
 {
@@ -20,11 +22,26 @@ namespace SPMeta2.Definitions.Webparts
     [DefaultParentHost(typeof(WebPartPageDefinition))]
 
     [Serializable]
+    [DataContract]
+    [ExpectArrayExtensionMethod]
+
+    [ExpectManyInstances]
     public class ContentEditorWebPartDefinition : WebPartDefinition
     {
         #region properties
 
+        [ExpectValidation]
+        [ExpectUpdate]
+        [DataMember]
         public string Content { get; set; }
+
+        [ExpectValidation]
+        [ExpectUpdate]
+        [DataMember]
+
+        [SiteCollectionTokenCapability]
+        [WebTokenCapability]
+
         public string ContentLink { get; set; }
 
         #endregion

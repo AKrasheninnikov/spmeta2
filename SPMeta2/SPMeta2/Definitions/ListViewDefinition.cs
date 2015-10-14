@@ -1,8 +1,14 @@
 ﻿using SPMeta2.Attributes;
+using SPMeta2.Attributes.Identity;
 using SPMeta2.Attributes.Regression;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using SPMeta2.Definitions.Base;
+using SPMeta2.Utils;
+using System.Runtime.Serialization;
+using SPMeta2.Attributes.Capabilities;
+using SPMeta2.Enumerations;
 
 namespace SPMeta2.Definitions
 {
@@ -18,6 +24,16 @@ namespace SPMeta2.Definitions
     [DefaultParentHostAttribute(typeof(ListDefinition))]
 
     [Serializable]
+    [DataContract]
+    [ExpectWithExtensionMethod]
+    [ExpectArrayExtensionMethod]
+    [ExpectAddHostExtensionMethod]
+
+    [ParentHostCapability(typeof(ListDefinition))]
+
+    // this not going to work due to IsDefault prop on view
+    //[ExpectManyInstances]
+
     public class ListViewDefinition : DefinitionBase
     {
         #region constructors
@@ -30,6 +46,10 @@ namespace SPMeta2.Definitions
 
             Url = string.Empty;
             Query = string.Empty;
+
+            Type = BuiltInViewType.Html;
+
+            TitleResource = new List<ValueForUICulture>();
         }
 
         #endregion
@@ -42,7 +62,20 @@ namespace SPMeta2.Definitions
         /// 
 
         [ExpectValidation]
+        [ExpectUpdate]
+        [ExpectRequired]
+        [DataMember]
+        [IdentityKey]
         public string Title { get; set; }
+
+
+        /// <summary>
+        /// Corresponds to NameResource property
+        /// </summary>
+        [ExpectValidation]
+        [ExpectUpdate]
+        [DataMember]
+        public List<ValueForUICulture> TitleResource { get; set; }
 
         /// <summary>
         /// Allows to define URL of the target view.
@@ -51,6 +84,8 @@ namespace SPMeta2.Definitions
         /// It helps to create "english" urls in non-english locales.
         /// </summary>
         [ExpectValidation]
+        [DataMember]
+        [IdentityKey]
         public string Url { get; set; }
 
         /// <summary>
@@ -58,6 +93,8 @@ namespace SPMeta2.Definitions
         /// </summary>
 
         [ExpectValidation]
+        [ExpectUpdate]
+        [DataMember]
         public int RowLimit { get; set; }
 
         /// <summary>
@@ -65,6 +102,11 @@ namespace SPMeta2.Definitions
         /// </summary>
         /// 
         [ExpectValidation]
+        [ExpectUpdateAsCamlQuery]
+        [DataMember]
+        [ExpectNullable]
+
+        [CamlPropertyCapabilityAttribute]
         public string Query { get; set; }
 
         /// <summary>
@@ -72,6 +114,16 @@ namespace SPMeta2.Definitions
         /// </summary>
         /// 
         [ExpectValidation]
+        [DataMember]
+        public string ViewData { get; set; }
+
+        /// <summary>
+        /// IsPaged flag of the target list view.
+        /// </summary>
+        /// 
+        [ExpectValidation]
+        [ExpectUpdate]
+        [DataMember]
         public bool IsPaged { get; set; }
 
         /// <summary>
@@ -79,17 +131,47 @@ namespace SPMeta2.Definitions
         /// </summary>
         /// 
         [ExpectValidation]
+        [ExpectUpdate]
+        [DataMember]
         public bool IsDefault { get; set; }
+
+        [ExpectValidation]
+        [ExpectUpdate]
+        [DataMember]
+        public bool Hidden { get; set; }
 
         /// <summary>
         /// Set of the internal field names of the target list view.
         /// </summary>
         /// 
         [ExpectValidation]
+        [ExpectUpdateAsInternalFieldName]
+        [DataMember]
         public Collection<string> Fields { get; set; }
 
         [ExpectValidation]
+        [ExpectUpdate]
+        [DataMember]
+        [ExpectNullable]
         public string JSLink { get; set; }
+
+        [ExpectValidation]
+        [ExpectUpdate]
+        [DataMember]
+        public bool? DefaultViewForContentType { get; set; }
+
+        [ExpectValidation]
+        [DataMember]
+        public string ContentTypeName { get; set; }
+
+        [ExpectValidation]
+        [DataMember]
+        public string ContentTypeId { get; set; }
+
+        [ExpectValidation]
+        [ExpectRequired]
+        [DataMember]
+        public string Type { get; set; }
 
         #endregion
 
@@ -97,7 +179,13 @@ namespace SPMeta2.Definitions
 
         public override string ToString()
         {
-            return string.Format("Title:[{0}] IsDefault:[{1}] Query:[{2}]", Title, IsDefault, Query);
+            return new ToStringResult<ListViewDefinition>(this)
+                         .AddPropertyValue(p => p.Title)
+                         .AddPropertyValue(p => p.Url)
+                         .AddPropertyValue(p => p.IsDefault)
+                         .AddPropertyValue(p => p.Query)
+
+                         .ToString();
         }
 
         #endregion

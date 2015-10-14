@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
 using System.Xml.Linq;
 
 using SPMeta2.Utils;
@@ -36,7 +36,12 @@ namespace SPMeta2.CSOM.ModelHandlers.Fields
             // let base setting be setup
             base.ProcessFieldProperties(field, fieldModel);
 
+            var typedFieldModel = fieldModel.WithAssertAndCast<NoteFieldDefinition>("model", value => value.RequireNotNull());
+            var typedField = field.Context.CastTo<FieldMultiLineText>(field);
 
+            typedField.NumberOfLines = typedFieldModel.NumberOfLines;
+            typedField.AppendOnly = typedFieldModel.AppendOnly;
+            typedField.RichText = typedFieldModel.RichText;
         }
 
         protected override void ProcessSPFieldXElement(XElement fieldTemplate, FieldDefinition fieldModel)
@@ -50,8 +55,8 @@ namespace SPMeta2.CSOM.ModelHandlers.Fields
 
             fieldTemplate.SetAttribute(BuiltInFieldAttributes.RichText, typedFieldModel.RichText.ToString().ToUpper());
             fieldTemplate.SetAttribute(BuiltInFieldAttributes.RichTextMode, typedFieldModel.RichTextMode);
-            fieldTemplate.SetAttribute(BuiltInFieldAttributes.AppendOnly, typedFieldModel.AppendOnly);
-            fieldTemplate.SetAttribute(BuiltInFieldAttributes.UnlimitedLengthInDocumentLibrary, typedFieldModel.UnlimitedLengthInDocumentLibrary);
+            fieldTemplate.SetAttribute(BuiltInFieldAttributes.AppendOnly, typedFieldModel.AppendOnly.ToString().ToUpper());
+            fieldTemplate.SetAttribute(BuiltInFieldAttributes.UnlimitedLengthInDocumentLibrary, typedFieldModel.UnlimitedLengthInDocumentLibrary.ToString().ToUpper());
         }
 
         #endregion

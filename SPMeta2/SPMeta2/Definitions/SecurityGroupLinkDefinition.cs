@@ -1,6 +1,10 @@
-﻿using SPMeta2.Attributes;
+﻿using System;
+using SPMeta2.Attributes;
+using SPMeta2.Attributes.Identity;
 using SPMeta2.Attributes.Regression;
 using SPMeta2.Definitions.Base;
+using System.Runtime.Serialization;
+using SPMeta2.Attributes.Capabilities;
 
 namespace SPMeta2.Definitions
 {
@@ -14,6 +18,17 @@ namespace SPMeta2.Definitions
 
     [DefaultRootHostAttribute(typeof(WebDefinition))]
     [DefaultParentHostAttribute(typeof(BreakRoleInheritanceDefinition))]
+    [ExpectWithExtensionMethod]
+
+    [Serializable]
+    [DataContract]
+
+    [ParentHostCapability(typeof(WebDefinition))]
+    [ParentHostCapability(typeof(ListDefinition))]
+    [ParentHostCapability(typeof(FolderDefinition))]
+    [ParentHostCapability(typeof(ListItemDefinition))]
+
+    [ExpectManyInstances]
 
     public class SecurityGroupLinkDefinition : DefinitionBase
     {
@@ -29,6 +44,8 @@ namespace SPMeta2.Definitions
         /// </summary>
         /// 
         [ExpectValidation]
+        [DataMember]
+        [IdentityKey]
         public string SecurityGroupName { get; set; }
 
         /// <summary>
@@ -36,6 +53,8 @@ namespace SPMeta2.Definitions
         /// </summary>
         /// 
         [ExpectValidation]
+        [DataMember]
+        [IdentityKey]
         public bool IsAssociatedVisitorGroup { get; set; }
 
         /// <summary>
@@ -43,12 +62,16 @@ namespace SPMeta2.Definitions
         /// </summary>
         /// 
         [ExpectValidation]
+        [DataMember]
+        [IdentityKey]
         public bool IsAssociatedMemberGroup { get; set; }
 
         /// <summary>
         /// Flag to mimic AssociatedOwnerGroup
         /// </summary>
         [ExpectValidation]
+        [DataMember]
+        [IdentityKey]
         public bool IsAssociatedOwnerGroup { get; set; }
 
         #endregion

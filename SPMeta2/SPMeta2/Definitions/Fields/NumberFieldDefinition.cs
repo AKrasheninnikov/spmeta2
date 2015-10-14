@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
 using SPMeta2.Attributes;
 using SPMeta2.Attributes.Regression;
 using SPMeta2.Enumerations;
 using SPMeta2.Utils;
+using System.Runtime.Serialization;
 
 namespace SPMeta2.Definitions.Fields
 {
@@ -21,7 +22,11 @@ namespace SPMeta2.Definitions.Fields
     [DefaultParentHost(typeof(SiteDefinition))]
     [DefaultRootHost(typeof(SiteDefinition))]
 
-    [Serializable]
+    [Serializable] 
+    [DataContract]
+    [ExpectArrayExtensionMethod]
+    [ExpectManyInstances]
+
     public class NumberFieldDefinition : FieldDefinition
     {
         #region constructors
@@ -37,15 +42,23 @@ namespace SPMeta2.Definitions.Fields
         #region properties
 
         [ExpectValidation]
+        [DataMember]
+        [ExpectNullable]
         public string DisplayFormat { get; set; }
 
         [ExpectValidation]
-        public double MaximumValue { get; set; }
+        [ExpectUpdateAsIntRange(MinValue = 1000, MaxValue = 5000)]
+        [DataMember]
+        public double? MaximumValue { get; set; }
 
         [ExpectValidation]
-        public double MinimumValue { get; set; }
+        [ExpectUpdateAsIntRange(MinValue = 100, MaxValue = 500)]
+        [DataMember]
+        public double? MinimumValue { get; set; }
 
         [ExpectValidation]
+        //[ExpectUpdate], only SSOM
+        [DataMember]
         public bool ShowAsPercentage { get; set; }
 
         #endregion

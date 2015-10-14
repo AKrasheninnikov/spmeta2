@@ -1,14 +1,28 @@
-﻿using SPMeta2.Attributes.Regression;
+﻿using SPMeta2.Attributes.Identity;
+using SPMeta2.Attributes.Regression;
 using System;
+using System.Collections.Generic;
 using SPMeta2.Definitions.Base;
+using System.Runtime.Serialization;
 
 namespace SPMeta2.Definitions
 {
+
+    [DataContract]
+    public class FieldValue
+    {
+        public string FieldName { get; set; }
+        public Guid? FieldId { get; set; }
+
+        public object Value { get; set; }
+    }
+
     /// <summary>
     /// Base definition for pages.
     /// </summary>
     /// 
     [Serializable]
+    [DataContract]
     public abstract class PageDefinitionBase : DefinitionBase
     {
         #region constructors
@@ -16,30 +30,41 @@ namespace SPMeta2.Definitions
         public PageDefinitionBase()
         {
             NeedOverride = true;
+            DefaultValues = new List<FieldValue>();
         }
 
         #endregion
 
         #region properties
 
+        [DataMember]
+        public List<FieldValue> DefaultValues { get; set; }
+
         /// <summary>
         /// Title of the target page.
         /// </summary>
         /// 
         [ExpectValidation]
-        public string Title { get; set; }
+        [ExpectUpdate]
+        [ExpectRequired]
+        [DataMember]
+        public virtual string Title { get; set; }
 
         /// <summary>
         /// File name of the target page.
         /// </summary>
         /// 
         [ExpectValidation]
+        [ExpectRequired]
+        [DataMember]
+        [IdentityKey]
         public string FileName { get; set; }
 
         /// <summary>
         /// Should page be overwritten during provision.
         /// </summary>
         /// 
+        [DataMember]
 
         public bool NeedOverride { get; set; }
 

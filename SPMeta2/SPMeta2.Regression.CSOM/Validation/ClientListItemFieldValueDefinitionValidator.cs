@@ -1,24 +1,19 @@
-﻿using SPMeta2.CSOM.ModelHandlers;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using SPMeta2.Containers.Assertion;
+using SPMeta2.CSOM.ModelHandlers;
 using SPMeta2.Utils;
 using SPMeta2.CSOM.ModelHosts;
 using SPMeta2.Definitions;
-using SPMeta2.Regression.Assertion;
 
 namespace SPMeta2.Regression.CSOM.Validation
 {
     public class ClientListItemFieldValueDefinitionValidator : ListItemFieldValueModelHandler
     {
-        public override void DeployModel(object modelHost, Definitions.DefinitionBase model)
+        public override void DeployModel(object modelHost, DefinitionBase model)
         {
-            var listItemModelHost = modelHost.WithAssertAndCast<ListItemFieldValueModelHost>("modelHost", value => value.RequireNotNull());
+            var listItemModelHost = modelHost.WithAssertAndCast<ListItemModelHost>("modelHost", value => value.RequireNotNull());
             var definition = model.WithAssertAndCast<ListItemFieldValueDefinition>("model", value => value.RequireNotNull());
 
-            var spObject = listItemModelHost.CurrentItem;
+            var spObject = listItemModelHost.HostListItem;
 
             var assert = ServiceFactory.AssertService
                             .NewAssert(definition, spObject)

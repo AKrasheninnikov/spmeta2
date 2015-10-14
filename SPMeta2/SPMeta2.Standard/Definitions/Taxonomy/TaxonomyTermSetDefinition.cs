@@ -1,9 +1,12 @@
 ﻿using System;
 using SPMeta2.Attributes;
+using SPMeta2.Attributes.Identity;
 using SPMeta2.Attributes.Regression;
 using SPMeta2.Definitions;
 using SPMeta2.Definitions.Base;
 using SPMeta2.Utils;
+using System.Runtime.Serialization;
+using SPMeta2.Attributes.Capabilities;
 
 namespace SPMeta2.Standard.Definitions.Taxonomy
 {
@@ -16,7 +19,15 @@ namespace SPMeta2.Standard.Definitions.Taxonomy
     [DefaultParentHost(typeof(TaxonomyTermGroupDefinition))]
     [DefaultRootHost(typeof(SiteDefinition))]
 
-    [Serializable]
+    [ExpectAddHostExtensionMethod]
+    [Serializable] 
+    [DataContract]
+    [ExpectArrayExtensionMethod]
+
+    [ParentHostCapability(typeof(TaxonomyTermGroupDefinition))]
+
+    [ExpectManyInstances]
+
     public class TaxonomyTermSetDefinition : DefinitionBase
     {
         #region constructors
@@ -30,10 +41,36 @@ namespace SPMeta2.Standard.Definitions.Taxonomy
 
         #region properties
 
+        [ExpectValidation]
+        [ExpectRequired(GroupName = "Term Identity")]
+        [DataMember]
+        [IdentityKey]
         public string Name { get; set; }
+
+        [ExpectValidation]
+        [ExpectUpdate]
+        [DataMember]
+        public string Description { get; set; }
+
+        [ExpectValidation]
+        [ExpectRequired(GroupName = "Term Identity")]
+        [DataMember]
+        [IdentityKey]
         public Guid? Id { get; set; }
 
+        [ExpectValidation]
+        [DataMember]
         public int LCID { get; set; }
+
+        [ExpectValidation]
+        [ExpectUpdate]
+        [DataMember]
+        public bool? IsAvailableForTagging { get; set; }
+
+        [ExpectValidation]
+        [ExpectUpdate]
+        [DataMember]
+        public bool? IsOpenForTermCreation { get; set; }
 
         #endregion
 

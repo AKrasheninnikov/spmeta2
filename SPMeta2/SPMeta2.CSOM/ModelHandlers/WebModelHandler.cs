@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Diagnostics;
 using System.Runtime.Remoting.Contexts;
 using Microsoft.SharePoint.Client;
@@ -10,7 +12,6 @@ using SPMeta2.ModelHandlers;
 using SPMeta2.ModelHosts;
 using SPMeta2.Utils;
 using SPMeta2.Exceptions;
-using SPMeta2.CSOM.Utils;
 using SPMeta2.Services;
 
 namespace SPMeta2.CSOM.ModelHandlers
@@ -47,7 +48,7 @@ namespace SPMeta2.CSOM.ModelHandlers
 
         public override void WithResolvingModelHost(ModelHostResolveContext modelHostContext)
         {
-            var modelHost = modelHostContext.ModelHost;
+            var modelHost = modelHostContext.ModelHost as ModelHostBase;
             var model = modelHostContext.Model;
             var childModelType = modelHostContext.ChildModelType;
             var action = modelHostContext.Action;
@@ -86,7 +87,20 @@ namespace SPMeta2.CSOM.ModelHandlers
                 HostWeb = currentWeb
             };
 
-            action(tmpWebModelHost);
+            if (childModelType == typeof(ModuleFileDefinition))
+            {
+                var folderModelHost = ModelHostBase.Inherit<FolderModelHost>(modelHost, m =>
+                {
+                    m.CurrentWeb = currentWeb;
+                    m.CurrentWebFolder = currentWeb.RootFolder; ;
+                });
+
+                action(folderModelHost);
+            }
+            else
+            {
+                action(tmpWebModelHost);
+            }
 
             InvokeOnModelEvent(this, new ModelEventArgs
             {
@@ -112,7 +126,6 @@ namespace SPMeta2.CSOM.ModelHandlers
                 return (modelHost as WebModelHost).HostSite;
 
             throw new SPMeta2NotSupportedException(string.Format("Cannot get host site from model host of type:[{0}]", modelHost.GetType()));
-
         }
 
         protected ClientContext ExtractHostClientContext(object modelHost)
@@ -124,7 +137,6 @@ namespace SPMeta2.CSOM.ModelHandlers
                 return (modelHost as WebModelHost).HostClientContext;
 
             throw new SPMeta2NotSupportedException(string.Format("Cannot get host client context from model host of type:[{0}]", modelHost.GetType()));
-
         }
 
         private static Web GetParentWeb(WebModelHost csomModelHost)
@@ -241,19 +253,73 @@ namespace SPMeta2.CSOM.ModelHandlers
             {
                 TraceService.Information((int)LogEventId.ModelProvisionProcessingNewObject, "Processing new web");
 
-                var newWebInfo = new WebCreationInformation
+                var webUrl = webModel.Url;
+                // Enhance web provision - handle '/' slash #620
+                // https://github.com/SubPointSolutions/spmeta2/issues/620
+                webUrl = UrlUtility.RemoveStartingSlash(webUrl);
+
+                WebCreationInformation newWebInfo;
+
+                if (string.IsNullOrEmpty(webModel.CustomWebTemplate))
                 {
-                    Title = webModel.Title,
-                    Url = webModel.Url,
-                    Description = webModel.Description ?? string.Empty,
-                    WebTemplate = webModel.WebTemplate,
-                    UseSamePermissionsAsParentSite = !webModel.UseUniquePermission,
-                    Language = (int)webModel.LCID
-                };
+                    newWebInfo = new WebCreationInformation
+                    {
+                        Title = webModel.Title,
+                        Url = webUrl,
+                        Description = webModel.Description ?? string.Empty,
+                        WebTemplate = webModel.WebTemplate,
+                        UseSamePermissionsAsParentSite = !webModel.UseUniquePermission,
+                        Language = (int)webModel.LCID
+                    };
+                }
+                else
+                {
+                    var customWebTemplateName = webModel.CustomWebTemplate;
+
+                    // by internal name
+                    var templateCollection = parentWeb.GetAvailableWebTemplates(webModel.LCID, true);
+                    var templateResult = context.LoadQuery(templateCollection
+                                                                    .Include(tmp => tmp.Name, tmp => tmp.Title)
+                                                                    .Where(tmp => tmp.Name == customWebTemplateName));
+
+
+                    TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "Trying to find template based on the given CustomWebTemplate and calling ExecuteQuery.");
+                    context.ExecuteQueryWithTrace();
+
+                    if (templateResult.FirstOrDefault() == null)
+                    {
+                        // one more try by title
+                        templateResult = context.LoadQuery(templateCollection
+                                                                   .Include(tmp => tmp.Name, tmp => tmp.Title)
+                                                                   .Where(tmp => tmp.Title == customWebTemplateName));
+
+
+
+                        TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "Trying to find template based on the given CustomWebTemplate and calling ExecuteQuery.");
+                        context.ExecuteQueryWithTrace();
+                    }
+
+                    var template = templateResult.FirstOrDefault();
+
+                    if (template == null)
+                        throw new SPMeta2ModelDeploymentException("Couldn't find custom web template: " + webModel.CustomWebTemplate);
+
+                    newWebInfo = new WebCreationInformation
+                    {
+                        Title = webModel.Title,
+                        Url = webModel.Url,
+                        Description = webModel.Description ?? string.Empty,
+                        WebTemplate = template.Name,
+                        UseSamePermissionsAsParentSite = !webModel.UseUniquePermission,
+                        Language = (int)webModel.LCID
+                    };
+                }
 
                 TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "Adding new web to the web collection and calling ExecuteQuery.");
                 var newWeb = parentWeb.Webs.Add(newWebInfo);
                 context.ExecuteQueryWithTrace();
+
+                ProcessLocalization(newWeb, webModel);
 
                 context.Load(newWeb);
 
@@ -280,6 +346,10 @@ namespace SPMeta2.CSOM.ModelHandlers
                 currentWeb.Title = webModel.Title;
                 currentWeb.Description = webModel.Description ?? string.Empty;
 
+                //  locale is not available with CSOM yet
+
+                ProcessLocalization(currentWeb, webModel);
+
                 InvokeOnModelEvent(this, new ModelEventArgs
                 {
                     CurrentModelNode = null,
@@ -290,6 +360,7 @@ namespace SPMeta2.CSOM.ModelHandlers
                     ObjectDefinition = model,
                     ModelHost = modelHost
                 });
+
                 InvokeOnModelEvent<WebDefinition, Web>(currentWeb, ModelEventType.OnUpdated);
 
                 TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "currentWeb.Update()");
@@ -334,6 +405,15 @@ namespace SPMeta2.CSOM.ModelHandlers
             {
                 // TODO, chekc is web exists
             }
+        }
+
+        protected virtual void ProcessLocalization(Web obj, WebDefinition definition)
+        {
+            ProcessGenericLocalization(obj, new Dictionary<string, List<ValueForUICulture>>
+            {
+                { "TitleResource", definition.TitleResource },
+                { "DescriptionResource", definition.DescriptionResource },
+            });
         }
 
         #endregion

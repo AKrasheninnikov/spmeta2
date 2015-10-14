@@ -34,6 +34,22 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == '1212|AnyCPU'">
+    <OutputPath>bin\1212\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug40|AnyCPU'">
+    <OutputPath>bin\Debug40\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug45|AnyCPU'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\Debug45\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DocumentationFile>bin\Debug\SPMeta2.Regression.CSOM.XML</DocumentationFile>
+    <DebugType>full</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.SharePoint.Client, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -65,12 +81,18 @@
     <Compile Include="ServiceFactory.cs" />
     <Compile Include="Utils\FieldSchemaXmlUtils.cs" />
     <Compile Include="Validation\ClientAppDefinitionValidator.cs" />
+    <Compile Include="Validation\ClientComposedLookItemLinkDefinitionValidator.cs" />
+    <Compile Include="Validation\ClientListItemFieldValuesDefinitionValidator.cs" />
+    <Compile Include="Validation\ClientMasterPagePreviewDefinitionValidator.cs" />
+    <Compile Include="Validation\ClientMasterPageDefinitionValidator.cs" />
+    <Compile Include="Validation\ClientResetRoleInheritanceDefinitionValidator.cs" />
     <Compile Include="Validation\ClientBreakRoleInheritanceDefinitionValidator.cs" />
     <Compile Include="Validation\ClientListFieldLinkDefinitionValidator.cs" />
     <Compile Include="Validation\ClientListItemDefinitionValidator.cs" />
     <Compile Include="Validation\ClientListItemFieldValueDefinitionValidator.cs" />
     <Compile Include="Validation\ClientModuleFileDefinitionaValidator.cs" />
     <Compile Include="Validation\ClientPropertyDefinitionValidator.cs" />
+    <Compile Include="Validation\ClientSupportedUICultureDefinitionValidator.cs" />
     <Compile Include="Validation\ClientTopNavigationNodeDefinitionValidator.cs" />
     <Compile Include="Validation\ClientQuickLaunchNavigationNodeDefinitionValidator.cs" />
     <Compile Include="Validation\ClientContentTypeDefinitionValidator.cs" />
@@ -91,7 +113,11 @@
     <Compile Include="Validation\ClientUserCustomActionDefinitionValidator.cs" />
     <Compile Include="Validation\ClientWebDefinitionValidator.cs" />
     <Compile Include="Validation\ClientMasterPageSettingsDefinitionValidator.cs" />
-    <Compile Include="Validation\ClientWebPartDefinitionValidator.cs" />
+    <Compile Include="Validation\ClientDeleteWebPartsDefinitionValidator.cs" />
+    <Compile Include="Validation\ClientComposedLookItemDefinitionValidator.cs" />
+    <Compile Include="Validation\Extended\ClientWebpartPresenceOnPageDefinitionValidator.cs" />
+    <Compile Include="Validation\Fields\DependentLookupFieldDefinitionValidator.cs" />
+    <Compile Include="Validation\WebPartDefinitionValidator.cs" />
     <Compile Include="Validation\ClientWelcomePageDefinitionValidator.cs" />
     <Compile Include="Validation\ClientWebPartPageDefinitionValidator.cs" />
     <Compile Include="Validation\ClientWikiPageDefinitionValidator.cs" />
@@ -102,10 +128,14 @@
     <Compile Include="Validation\ContentTypes\RemoveContentTypeLinksDefinitionValidator.cs" />
     <Compile Include="Validation\ContentTypes\UniqueContentTypeFieldsOrderDefinitionValidator.cs" />
     <Compile Include="Validation\ContentTypes\UniqueContentTypeOrderDefinitionValidator.cs" />
+    <Compile Include="Validation\ClientEventReceiverDefinitionValidator.cs" />
+    <Compile Include="Validation\Fields\OutcomeChoiceFieldDefinitionValidator.cs" />
+    <Compile Include="Validation\Fields\GeolocationFieldDefinitionValidator.cs" />
     <Compile Include="Validation\Fields\ComputedFieldDefinitionValidator.cs" />
     <Compile Include="Validation\Fields\CalculatedFieldDefinitionValidator.cs" />
     <Compile Include="Validation\Fields\GuidFieldDefinitionValidator.cs" />
     <Compile Include="Validation\Fields\NumberFieldDefinitionValidator.cs" />
+    <Compile Include="Validation\Fields\URLFieldDefinitionValidator.cs" />
     <Compile Include="Validation\Fields\UserFieldDefinitionValidator.cs" />
     <Compile Include="Validation\Fields\LookupFieldDefinitionValidator.cs" />
     <Compile Include="Validation\Fields\BooleanFieldDefinitionValidator.cs" />
@@ -116,31 +146,38 @@
     <Compile Include="Validation\Fields\CurrencyFieldDefinitionValidator.cs" />
     <Compile Include="Validation\Fields\MultiChoiceFieldDefinitionValidator.cs" />
     <Compile Include="Validation\Fields\BusinessDataFieldDefinitionValidator.cs" />
+    <Compile Include="Validation\ClientRegionalSettingsDefinitionValidator.cs" />
+    <Compile Include="Validation\ClientInformationRightsManagementSettingsDefinitionValidator.cs" />
+    <Compile Include="Validation\ClientRootWebDefinitionValidator.cs" />
+    <Compile Include="Validation\ClientTreeViewSettingsDefinitionValidator.cs" />
     <Compile Include="Validation\WebApplicationModelHost.cs" />
     <Compile Include="Validation\Webparts\ClientWebPartDefinitionValidator.cs" />
+    <Compile Include="Validation\Webparts\ClientWebPartGalleryFileDefinitionValidator.cs" />
     <Compile Include="Validation\Webparts\ContactFieldControlDefinitionValidator.cs" />
     <Compile Include="Validation\Webparts\ClientListViewWebPartDefinitionValidator.cs" />
+    <Compile Include="Validation\Webparts\PageViewerWebPartDefinitionValidator.cs" />
+    <Compile Include="Validation\Webparts\SilverlightWebPartDefinitionValidator.cs" />
     <Compile Include="Validation\Webparts\SiteFeedWebPartDefinitionValidator.cs" />
     <Compile Include="Validation\Webparts\ScriptEditorWebParttDefinitionValidator.cs" />
     <Compile Include="Validation\Webparts\ClientXsltListViewWebPartDefinitionValidator.cs" />
     <Compile Include="Validation\Webparts\ClientContentEditorWebpartDefinitionValidator.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\SPMeta2.Containers\SPMeta2.Containers.csproj">
+      <Project>{091C48FB-27E3-4F84-897C-5DE7BB55A2D3}</Project>
+      <Name>SPMeta2.Containers</Name>
+    </ProjectReference>
     <ProjectReference Include="..\SPMeta2.CSOM\SPMeta2.CSOM.csproj">
       <Project>{6F7EBF0C-7124-44D6-B9EC-302A54A19FE4}</Project>
       <Name>SPMeta2.CSOM</Name>
     </ProjectReference>
     <ProjectReference Include="..\SPMeta2.Regression\SPMeta2.Regression.csproj">
-      <Project>{2b5ca105-8d61-4704-b9ce-c1cba53aaab0}</Project>
+      <Project>{0DE538C9-1723-46B1-90F8-5DC67C56D7DD}</Project>
       <Name>SPMeta2.Regression</Name>
     </ProjectReference>
     <ProjectReference Include="..\SPMeta2.Standard\SPMeta2.Standard.csproj">
       <Project>{F310878E-9B72-4C3C-AE5D-C60B3515E2FC}</Project>
       <Name>SPMeta2.Standard</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\SPMeta2.Syntax.Default\SPMeta2.Syntax.Default.csproj">
-      <Project>{6F7E5D77-0A17-4409-BE8C-94389D276FA9}</Project>
-      <Name>SPMeta2.Syntax.Default</Name>
     </ProjectReference>
     <ProjectReference Include="..\SPMeta2\SPMeta2.csproj">
       <Project>{EE49D3FD-6180-40E6-829F-6831FF89DAC6}</Project>

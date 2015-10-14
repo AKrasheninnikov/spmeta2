@@ -6,7 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
 using SPMeta2.Definitions.Base;
 using SPMeta2.Services;
 using SPMeta2.Utils;
@@ -31,8 +31,27 @@ namespace SPMeta2.CSOM.ModelHandlers
             if (modelHost is ListModelHost)
                 return (modelHost as ListModelHost).HostList;
 
-            //if (modelHost is FolderModelHost)
-            //    return (modelHost as FolderModelHost).CurrentLibraryFolder.ite;
+            if (modelHost is File)
+                return (modelHost as File).ListItemAllFields;
+
+            if (modelHost is FolderModelHost)
+            {
+                var folderModelHost = modelHost as FolderModelHost;
+
+                // //if (folderModelHost.CurrentListFolder != null)
+
+                if (folderModelHost.CurrentList.BaseType == BaseType.DocumentLibrary)
+                    return folderModelHost.CurrentListFolder.ListItemAllFields;
+                else
+                    return folderModelHost.CurrentListItem;
+            }
+
+            if (modelHost is ListItemModelHost)
+            {
+                var listItemModelHost = modelHost as ListItemModelHost;
+
+                return listItemModelHost.HostListItem;
+            }
 
             //if (modelHost is WebpartPageModelHost)
             //    return (modelHost as WebpartPageModelHost).PageListItem;
@@ -78,7 +97,10 @@ namespace SPMeta2.CSOM.ModelHandlers
                 ModelHost = modelHost
             });
 
-            if (!securableObject.IsObjectPropertyInstantiated("HasUniqueRoleAssignments"))
+            //context.Load(securableObject);
+            //context.ExecuteQueryWithTrace();
+
+            if (!securableObject.IsPropertyAvailable("HasUniqueRoleAssignments"))
             {
                 context.Load(securableObject, s => s.HasUniqueRoleAssignments);
                 context.ExecuteQueryWithTrace();
@@ -95,6 +117,7 @@ namespace SPMeta2.CSOM.ModelHandlers
                     });
 
                 securableObject.BreakRoleInheritance(breakRoleInheritanceModel.CopyRoleAssignments, breakRoleInheritanceModel.ClearSubscopes);
+                context.ExecuteQueryWithTrace();
             }
 
             if (breakRoleInheritanceModel.ForceClearSubscopes)

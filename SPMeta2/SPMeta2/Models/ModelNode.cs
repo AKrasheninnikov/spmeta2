@@ -8,6 +8,7 @@ using SPMeta2.Definitions;
 using SPMeta2.Definitions.Base;
 using SPMeta2.Exceptions;
 using SPMeta2.Services;
+using System.Runtime.Serialization;
 
 namespace SPMeta2.Models
 {
@@ -36,6 +37,7 @@ namespace SPMeta2.Models
     /// Allows to adjust particular mode node processing behaviour.
     /// </summary>
     [Serializable]
+    [DataContract]
     public class ModelNodeOptions
     {
         #region constructors
@@ -81,6 +83,7 @@ namespace SPMeta2.Models
     /// Base tree model node implementation. 
     /// </summary>
     [Serializable]
+    [DataContract]
     public class ModelNode
     {
         #region constructors
@@ -94,6 +97,8 @@ namespace SPMeta2.Models
 
             ModelEvents = new Dictionary<ModelEventType, List<object>>();
             ModelContextEvents = new Dictionary<ModelEventType, List<object>>();
+
+            PropertyBag = new List<PropertyBagValue>();
         }
 
         #endregion
@@ -102,6 +107,8 @@ namespace SPMeta2.Models
 
         #region properties
 
+        [XmlIgnore]
+        [IgnoreDataMember]
         public string ObjectType
         {
             get { return GetType().Name; }
@@ -116,22 +123,37 @@ namespace SPMeta2.Models
         /// <summary>
         /// Allows to adjust particular mode node processing behaviour.
         /// </summary>
+        [DataMember]
         public ModelNodeOptions Options { get; set; }
 
+        [DataMember]
+        /// <summary>
+        /// A property bag to be used for any 'custom' properties attached to ModelNode.
+        /// </summary>
+        public List<PropertyBagValue> PropertyBag { get; set; }
+
+        [DataMember]
         public DefinitionBase Value { get; set; }
+
+        [DataMember]
         public Collection<ModelNode> ChildModels { get; set; }
 
         [XmlIgnore]
+        [IgnoreDataMember]
         public Dictionary<ModelEventType, List<object>> ModelEvents { get; set; }
 
         [XmlIgnore]
+        [IgnoreDataMember]
         public Dictionary<ModelEventType, List<object>> ModelContextEvents { get; set; }
 
         [XmlIgnore]
+        [IgnoreDataMember]
         public ModelNodeState State { get; set; }
 
         [XmlIgnore]
-        protected TraceServiceBase TraceService { get; set; }
+        [NonSerialized]
+        [IgnoreDataMember]
+        private readonly TraceServiceBase TraceService;
 
         #endregion
 
@@ -213,6 +235,9 @@ namespace SPMeta2.Models
                 TraceService.VerboseFormat((int)LogEventId.CoreCalls, "Setting property: [ObjectDefinition]: [{0}]", eventArgs.ObjectDefinition);
                 SetProperty(modelContextInstance, "ObjectDefinition", eventArgs.ObjectDefinition);
 
+                TraceService.VerboseFormat((int)LogEventId.CoreCalls, "Setting property: [ModelHost]: [{0}]", eventArgs.ModelHost);
+                SetProperty(modelContextInstance, "ModelHost", eventArgs.ModelHost);
+
                 TraceService.Verbose((int)LogEventId.CoreCalls, "Invoking event.");
                 action.DynamicInvoke(modelContextInstance);
             }
@@ -276,6 +301,17 @@ namespace SPMeta2.Models
         }
 
         #endregion
+
+        #region methods
+
+        public override string ToString()
+        {
+            return Value != null
+                        ? string.Format("Node value: [{0}] - {1}", Value.GetType().Name, Value)
+                        : base.ToString();
+        }
+
+        #endregion
     }
 
     /// <summary>
@@ -323,6 +359,12 @@ namespace SPMeta2.Models
         /// </summary>
         public ModelNode Model { get; set; }
 
+
+        /// <summary>
+        /// Current model host.
+        /// </summary>
+        public object ModelHost { get; set; }
+
         /// <summary>
         /// Current model node.
         /// </summary>
@@ -333,9 +375,13 @@ namespace SPMeta2.Models
         /// </summary>
         public ContinuationOptions ContinuationOption { get; set; }
 
+#if !NET35
+
         /// <summary>
         /// Aggregated exception, if any.
         /// </summary>
         public AggregateException Error { get; set; }
+
+#endif
     }
 }

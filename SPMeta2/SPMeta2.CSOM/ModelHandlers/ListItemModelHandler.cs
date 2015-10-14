@@ -10,7 +10,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
 using SPMeta2.Services;
 using SPMeta2.Utils;
 using SPMeta2.CSOM.ModelHosts;
@@ -34,15 +34,42 @@ namespace SPMeta2.CSOM.ModelHandlers
 
         public override void DeployModel(object modelHost, DefinitionBase model)
         {
-            var listModeHost = modelHost.WithAssertAndCast<ListModelHost>("modelHost", value => value.RequireNotNull());
             var listItemModel = model.WithAssertAndCast<ListItemDefinition>("model", value => value.RequireNotNull());
 
-            var list = listModeHost.HostList;
+            if (modelHost is ListModelHost)
+            {
+                var list = (modelHost as ListModelHost).HostList;
+                var rootFolder = (modelHost as ListModelHost).HostList.RootFolder;
 
-            DeployInternall(list, listItemModel);
+                if (!rootFolder.IsPropertyAvailable("ServerRelativeUrl"))
+                {
+                    rootFolder.Context.Load(rootFolder, f => f.ServerRelativeUrl);
+                    rootFolder.Context.ExecuteQueryWithTrace();
+                }
+
+                DeployInternall(list, rootFolder, listItemModel);
+            }
+            else if (modelHost is FolderModelHost)
+            {
+                // suppose it is a list, ir must be
+                var list = (modelHost as FolderModelHost).CurrentList;
+                var rootFolder = (modelHost as FolderModelHost).CurrentListItem.Folder;
+
+                if (!rootFolder.IsPropertyAvailable("ServerRelativeUrl"))
+                {
+                    rootFolder.Context.Load(rootFolder, f => f.ServerRelativeUrl);
+                    rootFolder.Context.ExecuteQueryWithTrace();
+                }
+
+                DeployInternall(list, rootFolder, listItemModel);
+            }
+            else
+            {
+                throw new SPMeta2UnsupportedModelHostException("modeHost should be either ListModelHost or FolderModelHost");
+            }
         }
 
-        private void DeployInternall(List list, ListItemDefinition listItemModel)
+        private void DeployInternall(List list, Folder folder, ListItemDefinition listItemModel)
         {
             if (IsDocumentLibray(list))
             {
@@ -54,59 +81,108 @@ namespace SPMeta2.CSOM.ModelHandlers
             ListItem currentItem = null;
 
             InvokeOnModelEvent<ListItemDefinition, ListItem>(currentItem, ModelEventType.OnUpdating);
-            currentItem = EnsureListItem(list, listItemModel);
+            currentItem = EnsureListItem(list, folder, listItemModel);
             InvokeOnModelEvent<ListItemDefinition, ListItem>(currentItem, ModelEventType.OnUpdated);
         }
 
-        public override void WithResolvingModelHost(object modelHost, DefinitionBase model, Type childModelType, Action<object> action)
+        public override void WithResolvingModelHost(ModelHostResolveContext modelHostContext)
         {
+            var modelHost = modelHostContext.ModelHost;
+            var model = modelHostContext.Model;
+            var childModelType = modelHostContext.ChildModelType;
+            var action = modelHostContext.Action;
+
+
             var listModeHost = modelHost.WithAssertAndCast<ListModelHost>("modelHost", value => value.RequireNotNull());
             var listItemModel = model.WithAssertAndCast<ListItemDefinition>("model", value => value.RequireNotNull());
 
-            var list = listModeHost.HostList;
+            List list = null;
+            Folder rootFolder = null;
 
-            var item = EnsureListItem(list, listItemModel);
+            if (modelHost is ListModelHost)
+            {
+                list = (modelHost as ListModelHost).HostList;
+                rootFolder = (modelHost as ListModelHost).HostList.RootFolder;
+
+                if (!rootFolder.IsPropertyAvailable("ServerRelativeUrl"))
+                {
+                    rootFolder.Context.Load(rootFolder, f => f.ServerRelativeUrl);
+                    rootFolder.Context.ExecuteQueryWithTrace();
+                }
+            }
+            else if (modelHost is FolderModelHost)
+            {
+                list = (modelHost as FolderModelHost).CurrentList;
+                rootFolder = (modelHost as FolderModelHost).CurrentListItem.Folder;
+
+                if (!rootFolder.IsPropertyAvailable("ServerRelativeUrl"))
+                {
+                    rootFolder.Context.Load(rootFolder, f => f.ServerRelativeUrl);
+                    rootFolder.Context.ExecuteQueryWithTrace();
+                }
+            }
+
+            var item = EnsureListItem(list, rootFolder, listItemModel);
             var context = list.Context;
 
-            if (childModelType == typeof(ListItemFieldValueDefinition))
+            // naaaaah, just gonna get a new one list item
+            // keep it simple and safe, really really really safe with all that SharePoint stuff...
+            // var currentItem = list.GetItemById(item.Id);
+
+            //context.Load(currentItem);
+            //context.ExecuteQueryWithTrace();
+
+            if (childModelType == typeof(ListItemFieldValueDefinition)
+                || childModelType == typeof(ListItemFieldValuesDefinition))
             {
-                // naaaaah, just gonna get a new one list item
-                // keep it simple and safe, really really really safe with all that SharePoint stuff...
-                var currentItem = list.GetItemById(item.Id);
-
-                context.Load(currentItem);
-                context.ExecuteQueryWithTrace();
-
-                var listItemPropertyHost = new ListItemFieldValueModelHost
+                var listItemPropertyHost = new ListItemModelHost
                 {
-                    CurrentItem = currentItem
+                    HostListItem = item
                 };
 
                 action(listItemPropertyHost);
-
-                currentItem.Update();
-
-                context.ExecuteQueryWithTrace();
             }
+            else
+            {
+                action(item);
+            }
+
+            item.Update();
+            context.ExecuteQueryWithTrace();
         }
 
-        protected ListItem GetListItem(List list, ListItemDefinition definition)
+        protected virtual ListItem FindListItem(List list, Folder folder, ListItemDefinition definition)
         {
-            var items = list.GetItems(CamlQuery.CreateAllItemsQuery());
-
             var context = list.Context;
+
+            var items = list.GetItems(new CamlQuery
+            {
+                FolderServerRelativeUrl = folder.ServerRelativeUrl,
+                ViewXml = string.Format(@"<View>
+                                          <Query>
+                                             <Where>
+                                                 <Eq>
+                                                     <FieldRef Name='Title'/>
+                                                     <Value Type='Text'>{0}</Value>
+                                                 </Eq>
+                                                </Where>
+                                            </Query>
+                                         </View>", definition.Title)
+            });
 
             context.Load(items);
             context.ExecuteQueryWithTrace();
 
-            // BIG TODO, don't tell me, I know that
-            return items.FirstOrDefault(i => i[BuiltInInternalFieldNames.Title] != null && (i[BuiltInInternalFieldNames.Title].ToString() == definition.Title));
+            if (items.Count > 0)
+                return items[0];
+
+            return null;
         }
 
-        private ListItem EnsureListItem(List list, ListItemDefinition listItemModel)
+        private ListItem EnsureListItem(List list, Folder folder, ListItemDefinition listItemModel)
         {
             var context = list.Context;
-            var currentItem = GetListItem(list, listItemModel);
+            var currentItem = FindListItem(list, folder, listItemModel);
 
             InvokeOnModelEvent(this, new ModelEventArgs
             {
@@ -123,9 +199,14 @@ namespace SPMeta2.CSOM.ModelHandlers
             {
                 TraceService.Information((int)LogEventId.ModelProvisionProcessingNewObject, "Processing new list item");
 
-                var newItem = list.AddItem(new ListItemCreationInformation());
+                var newItem = list.AddItem(new ListItemCreationInformation
+                {
+                    FolderUrl = folder.ServerRelativeUrl,
+                    UnderlyingObjectType = FileSystemObjectType.File,
+                    LeafName = null
+                });
 
-                newItem[BuiltInInternalFieldNames.Title] = listItemModel.Title;
+                MapListItemProperties(newItem, listItemModel);
 
                 InvokeOnModelEvent(this, new ModelEventArgs
                 {
@@ -148,7 +229,7 @@ namespace SPMeta2.CSOM.ModelHandlers
             {
                 TraceService.Information((int)LogEventId.ModelProvisionProcessingExistingObject, "Processing existing list item");
 
-                currentItem[BuiltInInternalFieldNames.Title] = listItemModel.Title;
+                MapListItemProperties(currentItem, listItemModel);
 
                 InvokeOnModelEvent(this, new ModelEventArgs
                 {
@@ -167,6 +248,11 @@ namespace SPMeta2.CSOM.ModelHandlers
 
                 return currentItem;
             }
+        }
+
+        protected virtual void MapListItemProperties(ListItem currentItem, ListItemDefinition listItemModel)
+        {
+            currentItem[BuiltInInternalFieldNames.Title] = listItemModel.Title;
         }
 
         private bool IsDocumentLibray(List list)

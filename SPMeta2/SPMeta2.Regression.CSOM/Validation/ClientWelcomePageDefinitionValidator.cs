@@ -1,17 +1,8 @@
-﻿using System;
-using System.Linq;
-using Microsoft.SharePoint.Client;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using SPMeta2.Containers.Assertion;
 using SPMeta2.CSOM.Extensions;
 using SPMeta2.CSOM.ModelHandlers;
 using SPMeta2.Definitions;
-using SPMeta2.Definitions.Base;
-using SPMeta2.Regression.Utils;
 using SPMeta2.Utils;
-using SPMeta2.CSOM.ModelHosts;
-using System.Text;
-using SPMeta2.Syntax.Default.Utils;
-using SPMeta2.Regression.Assertion;
 
 namespace SPMeta2.Regression.CSOM.Validation
 {
@@ -26,11 +17,29 @@ namespace SPMeta2.Regression.CSOM.Validation
             var spObject = ExtractFolderFromModelHost(modelHost);
             var context = spObject.Context;
 
-            context.ExecuteQuery();
+            context.ExecuteQueryWithTrace();
 
             var assert = ServiceFactory.AssertService
                                      .NewAssert(definition, spObject)
                                            .ShouldNotBeNull(spObject);
+
+            assert.ShouldBeEqual((p, s, d) =>
+            {
+                var srcProp = s.GetExpressionValue(m => m.Url);
+
+                var src = UrlUtility.RemoveStartingSlash(s.Url).ToUpper();
+                var dst = UrlUtility.RemoveStartingSlash(d.WelcomePage).ToUpper();
+
+                var isValid = dst.EndsWith(src);
+
+                return new PropertyValidationResult
+                {
+                    Tag = p.Tag,
+                    Src = srcProp,
+                    Dst = null,
+                    IsValid = isValid
+                };
+            });
 
         }
 

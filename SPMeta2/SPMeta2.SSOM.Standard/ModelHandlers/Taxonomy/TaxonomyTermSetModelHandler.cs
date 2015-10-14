@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
 using Microsoft.SharePoint.Taxonomy;
 using SPMeta2.Common;
 using SPMeta2.Definitions;
@@ -38,8 +38,14 @@ namespace SPMeta2.SSOM.Standard.ModelHandlers.Taxonomy
 
         }
 
-        public override void WithResolvingModelHost(object modelHost, DefinitionBase model, Type childModelType, Action<object> action)
+        public override void WithResolvingModelHost(ModelHostResolveContext modelHostContext)
         {
+            var modelHost = modelHostContext.ModelHost;
+            var model = modelHostContext.Model;
+            var childModelType = modelHostContext.ChildModelType;
+            var action = modelHostContext.Action;
+
+
             var groupModelHost = modelHost.WithAssertAndCast<TermGroupModelHost>("modelHost", value => value.RequireNotNull());
             var termSetModel = model.WithAssertAndCast<TaxonomyTermSetDefinition>("model", value => value.RequireNotNull());
 
@@ -79,6 +85,8 @@ namespace SPMeta2.SSOM.Standard.ModelHandlers.Taxonomy
                     ? termGroup.CreateTermSet(termSetModel.Name, termSetModel.Id.Value, termSetModel.LCID)
                     : termGroup.CreateTermSet(termSetModel.Name, termSetModel.LCID);
 
+                MapTermSet(currentTermSet, termSetModel);
+
                 InvokeOnModelEvent(this, new ModelEventArgs
                 {
                     CurrentModelNode = null,
@@ -94,6 +102,8 @@ namespace SPMeta2.SSOM.Standard.ModelHandlers.Taxonomy
             {
                 TraceService.Information((int)LogEventId.ModelProvisionProcessingExistingObject, "Processing existing Term Set");
 
+                MapTermSet(currentTermSet, termSetModel);
+
                 InvokeOnModelEvent(this, new ModelEventArgs
                 {
                     CurrentModelNode = null,
@@ -105,6 +115,19 @@ namespace SPMeta2.SSOM.Standard.ModelHandlers.Taxonomy
                     ModelHost = modelHost
                 });
             }
+
+            groupModelHost.HostTermStore.CommitAll();
+        }
+
+        private static void MapTermSet(TermSet currentTermSet, TaxonomyTermSetDefinition termSetModel)
+        {
+            currentTermSet.Description = termSetModel.Description;
+
+            if (termSetModel.IsOpenForTermCreation.HasValue)
+                currentTermSet.IsOpenForTermCreation = termSetModel.IsOpenForTermCreation.Value;
+
+            if (termSetModel.IsAvailableForTagging.HasValue)
+                currentTermSet.IsAvailableForTagging = termSetModel.IsAvailableForTagging.Value;
         }
 
         protected TermSet FindTermSet(Microsoft.SharePoint.Taxonomy.Group termGroup, TaxonomyTermSetDefinition termSetModel)

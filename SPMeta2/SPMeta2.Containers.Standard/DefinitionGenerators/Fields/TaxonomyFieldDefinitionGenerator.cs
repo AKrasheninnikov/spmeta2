@@ -18,8 +18,14 @@ namespace SPMeta2.Containers.Standard.DefinitionGenerators.Fields
             return new TaxonomyFieldDefinition
             {
                 UseDefaultSiteCollectionTermStore = true,
-                TermSetName = "Maps"
+                DefaultValue = string.Empty
             };
+        }
+
+        protected override void PostProcessDefinitionTemplate(FieldDefinition action)
+        {
+            var def = action as TaxonomyFieldDefinition;
+            def.DefaultValue = string.Empty;
         }
     }
 }

@@ -4,19 +4,23 @@ using System.Diagnostics;
 using System.Security;
 using Microsoft.SharePoint.Client;
 using Microsoft.SharePoint.Client.Publishing.Navigation;
+using Microsoft.SharePoint.Client.Search.Portability;
 using Microsoft.SharePoint.Client.Taxonomy;
 using Microsoft.SharePoint.Client.WorkflowServices;
+using SPMeta2.Containers.Consts;
+using SPMeta2.Containers.Exceptions;
 using SPMeta2.Containers.Services;
 using SPMeta2.Containers.Utils;
 using SPMeta2.CSOM.ModelHosts;
 using SPMeta2.CSOM.Services;
 using SPMeta2.CSOM.Standard.ModelHandlers.Fields;
+using SPMeta2.Exceptions;
 using SPMeta2.ModelHandlers;
 using SPMeta2.Models;
 using SPMeta2.Regression.CSOM;
 using SPMeta2.Regression.CSOM.Standard.Validation.Fields;
-using SPMeta2.Regression.Runners.Consts;
 using SPMeta2.Utils;
+using SPMeta2.Services.Impl;
 
 namespace SPMeta2.Containers.CSOM
 {
@@ -43,6 +47,9 @@ namespace SPMeta2.Containers.CSOM
             _provisionService = new CSOMProvisionService();
             _validationService = new CSOMValidationService();
 
+            // TODO, setup a high level validation registration
+            _provisionService.PreDeploymentServices.Add(new DefaultRequiredPropertiesValidationService());
+
             var csomStandartAsm = typeof(TaxonomyFieldModelHandler).Assembly;
 
             foreach (var handlerType in ReflectionUtils.GetTypesFromAssembly<ModelHandlerBase>(csomStandartAsm))
@@ -52,6 +59,32 @@ namespace SPMeta2.Containers.CSOM
 
             foreach (var handlerType in ReflectionUtils.GetTypesFromAssembly<ModelHandlerBase>(csomtandartValidationAsm))
                 _validationService.RegisterModelHandler(Activator.CreateInstance(handlerType) as ModelHandlerBase);
+
+            _provisionService.OnModelNodeProcessing += (sender, args) =>
+            {
+                Trace.WriteLine(
+                    string.Format("Processing: [{0}/{1}] - [{2:0} %] - [{3}] [{4}]",
+                    new object[] {
+                                  args.ProcessedModelNodeCount,
+                                  args.TotalModelNodeCount,
+                                  100d * (double)args.ProcessedModelNodeCount / (double)args.TotalModelNodeCount,
+                                  args.CurrentNode.Value.GetType().Name,
+                                  args.CurrentNode.Value
+                                  }));
+            };
+
+            _provisionService.OnModelNodeProcessed += (sender, args) =>
+            {
+                Trace.WriteLine(
+                   string.Format("Processed: [{0}/{1}] - [{2:0} %] - [{3}] [{4}]",
+                   new object[] {
+                                  args.ProcessedModelNodeCount,
+                                  args.TotalModelNodeCount,
+                                  100d * (double)args.ProcessedModelNodeCount / (double)args.TotalModelNodeCount,
+                                  args.CurrentNode.Value.GetType().Name,
+                                  args.CurrentNode.Value
+                                  }));
+            };
         }
 
         private void LoadEnvironmentConfig()
@@ -106,6 +139,7 @@ namespace SPMeta2.Containers.CSOM
             var workflow = typeof(WorkflowDefinition);
             var store = typeof(TermStore);
             var publishing = typeof(WebNavigationSettings);
+            var search = typeof(SearchConfigurationPortability);
 
             return base.ResolveFullTypeName(typeName, assemblyName);
         }
@@ -124,7 +158,8 @@ namespace SPMeta2.Containers.CSOM
                 {
                     WithCSOMContext(siteUrl, context =>
                     {
-                        _provisionService.DeployModel(SiteModelHost.FromClientContext(context), model);
+                        if (EnableDefinitionProvision)
+                            _provisionService.DeployModel(SiteModelHost.FromClientContext(context), model);
 
                         if (EnableDefinitionValidation)
                             _validationService.DeployModel(SiteModelHost.FromClientContext(context), model);
@@ -133,6 +168,37 @@ namespace SPMeta2.Containers.CSOM
             }
         }
 
+        public override void DeployFarmModel(ModelNode model)
+        {
+            throw new SPMeta2UnsupportedCSOMRunnerException();
+        }
+
+        public override void DeployWebApplicationModel(ModelNode model)
+        {
+            throw new SPMeta2UnsupportedCSOMRunnerException();
+        }
+
+        public override void DeployListModel(ModelNode model)
+        {
+            foreach (var webUrl in WebUrls)
+            {
+                Trace.WriteLine(string.Format("[INF]    Running on web: [{0}]", webUrl));
+
+                WithCSOMContext(webUrl, context =>
+                {
+                    for (var provisionGeneration = 0;
+                        provisionGeneration < ProvisionGenerationCount;
+                        provisionGeneration++)
+                    {
+                        if (EnableDefinitionProvision)
+                            _provisionService.DeployModel(WebModelHost.FromClientContext(context), model);
+
+                        if (EnableDefinitionValidation)
+                            _validationService.DeployModel(WebModelHost.FromClientContext(context), model);
+                    }
+                });
+            }
+        }
 
         /// <summary>
         /// Deploys and validates target web model.
@@ -150,7 +216,8 @@ namespace SPMeta2.Containers.CSOM
                         provisionGeneration < ProvisionGenerationCount;
                         provisionGeneration++)
                     {
-                        _provisionService.DeployModel(WebModelHost.FromClientContext(context), model);
+                        if (EnableDefinitionProvision)
+                            _provisionService.DeployModel(WebModelHost.FromClientContext(context), model);
 
                         if (EnableDefinitionValidation)
                             _validationService.DeployModel(WebModelHost.FromClientContext(context), model);

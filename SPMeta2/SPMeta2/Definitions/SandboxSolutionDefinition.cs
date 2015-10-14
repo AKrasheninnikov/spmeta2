@@ -5,9 +5,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
 using SPMeta2.Definitions.Base;
 using SPMeta2.Utils;
+using System.Runtime.Serialization;
+using SPMeta2.Attributes.Capabilities;
 
 namespace SPMeta2.Definitions
 {
@@ -22,7 +24,14 @@ namespace SPMeta2.Definitions
     [DefaultParentHostAttribute(typeof(SiteDefinition))]
     [DefaultRootHostAttribute(typeof(SiteDefinition))]
 
-    [Serializable]
+    [Serializable] 
+    [DataContract]
+    [ExpectWithExtensionMethod]
+    [ExpectArrayExtensionMethod]
+
+    [ParentHostCapability(typeof(SiteDefinition))]
+
+    [ExpectManyInstances]
 
     public class SandboxSolutionDefinition : SolutionDefinitionBase
     {
@@ -41,6 +50,7 @@ namespace SPMeta2.Definitions
         /// Should the solution be activated.
         /// </summary>
         [ExpectValidation]
+        [DataMember]
         public bool Activate { get; set; }
 
         #endregion

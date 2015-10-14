@@ -20,13 +20,27 @@ using SPMeta2.CSOM.ModelHosts;
 using SPMeta2.Exceptions;
 using System.Text;
 using System.IO;
+using System.Security;
+using SPMeta2.Definitions.Webparts;
+using SPMeta2.Services.Webparts;
 using File = Microsoft.SharePoint.Client.File;
 
 namespace SPMeta2.CSOM.ModelHandlers
 {
     public class WebPartModelHandler : CSOMModelHandlerBase
     {
+        #region contructors
+
+        public WebPartModelHandler()
+        {
+            WebPartChromeTypesConvertService = ServiceContainer.Instance.GetService<WebPartChromeTypesConvertService>();
+        }
+
+        #endregion
+
         #region properties
+
+        protected WebPartChromeTypesConvertService WebPartChromeTypesConvertService { get; set; }
 
         public override Type TargetType
         {
@@ -37,17 +51,46 @@ namespace SPMeta2.CSOM.ModelHandlers
 
         #endregion
 
+        #region classes
+
+        protected class WebPartProcessingContext
+        {
+            public Guid? WebPartStoreKey { get; set; }
+            public ListItemModelHost ListItemModelHost { get; set; }
+            public WebPartDefinitionBase WebPartDefinition { get; set; }
+        }
+
+        #endregion
+
         #region methods
 
-        protected void WithWithExistingWebPart(ListItem listItem, WebPartDefinition webPartModel,
-             Action<WebPart> action)
+        //protected void WithExistingWebPart(ListItem listItem, WebPartDefinition webPartModel,
+        //  Action<WebPart> action)
+        //{
+        //    WithExistingWebPart(listItem.File, webPartModel, action);
+        //}
+
+        protected void WithExistingWebPart(File file, WebPartDefinition webPartModel,
+           Action<WebPart> action)
         {
-            var context = listItem.Context;
-            var filePath = listItem["FileRef"].ToString();
+            WithExistingWebPart(file, webPartModel, (w, d) =>
+            {
+                action(w);
+            });
+        }
 
-            var web = listItem.ParentList.ParentWeb;
+        //protected void WithExistingWebPart(ListItem listItem, WebPartDefinition webPartModel,
+        //    Action<WebPart, Microsoft.SharePoint.Client.WebParts.WebPartDefinition> action)
+        //{
+        //    WithExistingWebPart(listItem.File, webPartModel, action);
+        //}
 
-            var pageFile = web.GetFileByServerRelativeUrl(filePath);
+
+
+        protected void WithExistingWebPart(File pageFile, WebPartDefinition webPartModel,
+             Action<WebPart, Microsoft.SharePoint.Client.WebParts.WebPartDefinition> action)
+        {
+            var context = pageFile.Context;
             var webPartManager = pageFile.GetLimitedWebPartManager(PersonalizationScope.Shared);
 
             // web part on the page
@@ -56,18 +99,18 @@ namespace SPMeta2.CSOM.ModelHandlers
 
             context.ExecuteQueryWithTrace();
 
-            var existingWebPart = FindExistingWebPart(webPartDefenitions, webPartModel);
+            Microsoft.SharePoint.Client.WebParts.WebPartDefinition def = null;
+            var existingWebPart = FindExistingWebPart(webPartDefenitions, webPartModel, out def);
 
-            action(existingWebPart);
+            action(existingWebPart, def);
         }
 
         protected File GetCurrentPageFile(ListItemModelHost listItemModelHost)
         {
-            var listItem = listItemModelHost.HostListItem;
-            var filePath = listItem["FileRef"].ToString();
+            if (listItemModelHost.HostFile != null)
+                return listItemModelHost.HostFile;
 
-            var web = listItem.ParentList.ParentWeb;
-            return web.GetFileByServerRelativeUrl(filePath);
+            return listItemModelHost.HostListItem.File;
         }
 
         protected ListItem SearchItemByName(List list, Folder folder, string pageName)
@@ -112,7 +155,7 @@ namespace SPMeta2.CSOM.ModelHandlers
         protected virtual string GetWebpartXmlDefinition(ListItemModelHost listItemModelHost, WebPartDefinitionBase webPartModel)
         {
             var result = string.Empty;
-            var context = listItemModelHost.HostListItem.Context;
+            var context = listItemModelHost.HostList.Context;
 
             if (!string.IsNullOrEmpty(webPartModel.WebpartFileName))
             {
@@ -129,7 +172,7 @@ namespace SPMeta2.CSOM.ModelHandlers
                         var rootWebContext = rootWeb.Context;
 
                         var webPartCatalog =
-                            rootWeb.QueryAndGetListByUrl(BuiltInListDefinitions.Calalogs.Wp.GetListUrl());
+                            rootWeb.QueryAndGetListByUrl(BuiltInListDefinitions.Catalogs.Wp.GetListUrl());
                         //var webParts = webPartCatalog.GetItems(CamlQuery.CreateAllItemsQuery());
 
                         //rootWebContext.Load(webParts);
@@ -187,33 +230,145 @@ namespace SPMeta2.CSOM.ModelHandlers
             return result;
         }
 
-        protected virtual string ProcessCommonWebpartProperties(string webPartXml, WebPartDefinitionBase webPartModel)
+        protected virtual string ProcessCommonWebpartProperties(string webPartXml, WebPartDefinitionBase definition)
         {
-            return WebpartXmlExtensions.LoadWebpartXmlDocument(webPartXml)
-                                               .SetTitle(webPartModel.Title)
-                                               .SetID(webPartModel.Id)
-                                               .ToString();
+            var xml = WebpartXmlExtensions.LoadWebpartXmlDocument(webPartXml)
+                                            .SetTitle(definition.Title)
+                                            .SetID(definition.Id);
+
+            if (definition.Width.HasValue)
+                xml.SetWidth(definition.Width.Value);
+
+            if (definition.Height.HasValue)
+                xml.SetHeight(definition.Height.Value);
+
+            if (!string.IsNullOrEmpty(definition.Description))
+                xml.SetDescription(definition.Description);
+
+            if (!string.IsNullOrEmpty(definition.ImportErrorMessage))
+                xml.SetImportErrorMessage(definition.ImportErrorMessage);
+
+            if (!string.IsNullOrEmpty(definition.TitleUrl))
+            {
+                var urlValue = definition.TitleUrl ?? string.Empty;
+
+                TraceService.VerboseFormat((int)LogEventId.ModelProvisionCoreCall, "Original value: [{0}]", urlValue);
+
+                urlValue = TokenReplacementService.ReplaceTokens(new TokenReplacementContext
+                {
+                    Value = urlValue,
+                    Context = CurrentClientContext
+                }).Value;
+
+                TraceService.VerboseFormat((int)LogEventId.ModelProvisionCoreCall, "Token replaced value: [{0}]", urlValue);
+
+                xml.SetTitleUrl(urlValue);
+            }
+
+            if (!string.IsNullOrEmpty(definition.TitleIconImageUrl))
+                xml.SetTitleIconImageUrl(definition.TitleIconImageUrl);
+
+            if (!string.IsNullOrEmpty(definition.ChromeState))
+                xml.SetChromeState(definition.ChromeState);
+
+            if (!string.IsNullOrEmpty(definition.ChromeType))
+            {
+                var chromeType = string.Empty;
+
+                if (xml.IsV3version())
+                    chromeType = WebPartChromeTypesConvertService.NormilizeValueToPartChromeTypes(definition.ChromeType);
+                else if (xml.IsV2version())
+                    chromeType = WebPartChromeTypesConvertService.NormilizeValueToFrameTypes(definition.ChromeType);
+
+                // SetChromeType() sets correct XML props depending on V2/V3 web part XML
+                xml.SetChromeType(chromeType);
+            }
+
+            if (!string.IsNullOrEmpty(definition.ExportMode))
+                xml.SetExportMode(definition.ExportMode);
+
+            if (definition.ParameterBindings != null && definition.ParameterBindings.Count > 0)
+            {
+                var parameterBinder = new WebPartParameterBindingsOptions();
+
+                foreach (var binding in definition.ParameterBindings)
+                    parameterBinder.AddParameterBinding(binding.Name, binding.Location);
+
+                var parameterBindingValue = SecurityElement.Escape(parameterBinder.ParameterBinding);
+                xml.SetOrUpdateProperty("ParameterBindings", parameterBindingValue);
+            }
+
+            return xml.ToString();
+        }
+
+        protected ClientContext CurrentClientContext { get; set; }
+
+        protected virtual void OnBeforeDeploy(ListItemModelHost host, WebPartDefinitionBase webpart)
+        {
+            
         }
 
         public override void DeployModel(object modelHost, DefinitionBase model)
         {
+            Guid? OldWebParKey = null;
+
             var listItemModelHost = modelHost.WithAssertAndCast<ListItemModelHost>("modelHost", value => value.RequireNotNull());
             var webPartModel = model.WithAssertAndCast<WebPartDefinitionBase>("model", value => value.RequireNotNull());
 
-            var listItem = listItemModelHost.HostListItem;
+            OnBeforeDeploy(listItemModelHost, webPartModel);
 
-            var context = listItem.Context;
+            CurrentClientContext = listItemModelHost.HostClientContext;
+
+            var context = listItemModelHost.HostClientContext;
             var currentPageFile = GetCurrentPageFile(listItemModelHost);
 
-            ModuleFileModelHandler.WithSafeFileOperation(listItem.ParentList, currentPageFile, pageFile =>
+
+            if (listItemModelHost.HostFolder != null)
             {
+                if (!listItemModelHost.HostFolder.IsPropertyAvailable("Properties") ||
+                    listItemModelHost.HostFolder.Properties.FieldValues.Count == 0)
+                {
+                    listItemModelHost.HostFolder.Context.Load(listItemModelHost.HostFolder, f => f.Properties);
+                    //folder.Context.Load(folder, f => f.Properties);
+
+                    listItemModelHost.HostFolder.Context.ExecuteQueryWithTrace();
+                }
+            }
+
+            // TODO
+            var doesFileHasListItem =
+                //Forms folders
+               !(listItemModelHost.HostFolder != null
+                &&
+                (listItemModelHost.HostFolder.Properties.FieldValues.ContainsKey("vti_winfileattribs")
+                 && listItemModelHost.HostFolder.Properties.FieldValues["vti_winfileattribs"].ToString() == "00000012"));
+
+            ModuleFileModelHandler.WithSafeFileOperation(listItemModelHost.HostList,
+                currentPageFile, pageFile =>
+            {
+                Guid? webPartStoreKey = null;
+
+                InternalOnBeforeWebPartProvision(new WebPartProcessingContext
+                {
+                    ListItemModelHost = listItemModelHost,
+                    WebPartDefinition = webPartModel,
+                    WebPartStoreKey = webPartStoreKey
+                });
+
                 //var fileContext = pageFile.Context;
-                var fileListItem = pageFile.ListItemAllFields;
-                var fileContext = pageFile.Context;
+                ListItem fileListItem = null;
 
-                fileContext.Load(fileListItem);
+                if (webPartModel.AddToPageContent)
+                {
+                    // pre load here to be used later
 
-                fileContext.ExecuteQueryWithTrace();
+                    var fileContext = pageFile.Context;
+
+                    fileListItem = pageFile.ListItemAllFields;
+
+                    fileContext.Load(fileListItem);
+                    fileContext.ExecuteQueryWithTrace();
+                }
 
                 var webPartManager = pageFile.GetLimitedWebPartManager(PersonalizationScope.Shared);
 
@@ -243,7 +398,10 @@ namespace SPMeta2.CSOM.ModelHandlers
 
                 if (wpDefinition != null)
                 {
-                    TraceService.Information((int)LogEventId.ModelProvisionProcessingNewObject, "Deleting current web part.");
+                    OldWebParKey = wpDefinition.Id;
+
+                    TraceService.Information((int)LogEventId.ModelProvisionProcessingNewObject,
+                        "Deleting current web part.");
 
                     wpDefinition.DeleteWebPart();
                     wpDefinition.Context.ExecuteQueryWithTrace();
@@ -253,19 +411,42 @@ namespace SPMeta2.CSOM.ModelHandlers
                     existingWebPart = tmpWp;
                 }
 
+                Microsoft.SharePoint.Client.WebParts.WebPartDefinition webPartAddedDefinition = null;
+
                 if (existingWebPart == null)
                 {
-                    TraceService.Information((int)LogEventId.ModelProvisionProcessingNewObject, "Processing new web part");
+                    TraceService.Information((int)LogEventId.ModelProvisionProcessingNewObject,
+                        "Processing new web part");
 
                     var webPartXML = GetWebpartXmlDefinition(listItemModelHost, webPartModel);
                     webPartXML = ProcessCommonWebpartProperties(webPartXML, webPartModel);
 
-                    // handle wiki page
+                    //// handle wiki page
+                    //if (webPartModel.AddToPageContent)
+                    //{
 
-                    HandleWikiPageProvision(fileListItem, webPartModel);
+                    //    HandleWikiPageProvision(fileListItem, webPartModel);
+                    //}
 
                     var webPartDefinition = webPartManager.ImportWebPart(webPartXML);
-                    var webPartAddedDefinition = webPartManager.AddWebPart(webPartDefinition.WebPart, webPartModel.ZoneId, webPartModel.ZoneIndex);
+                    webPartAddedDefinition = webPartManager.AddWebPart(webPartDefinition.WebPart,
+                                                                       webPartModel.ZoneId,
+                                                                       webPartModel.ZoneIndex);
+
+                    context.Load(webPartAddedDefinition);
+                    context.ExecuteQueryWithTrace();
+
+                    if (webPartAddedDefinition != null && webPartAddedDefinition.ServerObjectIsNull == false)
+                    {
+                        existingWebPart = webPartAddedDefinition.WebPart;
+                        webPartStoreKey = webPartAddedDefinition.Id;
+                    }
+
+                    // handle wiki page
+                    if (webPartModel.AddToPageContent)
+                    {
+                        HandleWikiPageProvision(fileListItem, webPartModel, webPartStoreKey, OldWebParKey);
+                    }
 
                     InvokeOnModelEvent<WebPartDefinition, WebPart>(null, ModelEventType.OnUpdating);
 
@@ -286,9 +467,13 @@ namespace SPMeta2.CSOM.ModelHandlers
                 }
                 else
                 {
-                    TraceService.Information((int)LogEventId.ModelProvisionProcessingExistingObject, "Processing existing web part");
+                    TraceService.Information((int)LogEventId.ModelProvisionProcessingExistingObject,
+                        "Processing existing web part");
 
-                    HandleWikiPageProvision(fileListItem, webPartModel);
+                    if (webPartModel.AddToPageContent)
+                    {
+                        //HandleWikiPageProvision(fileListItem, webPartModel);
+                    }
 
                     InvokeOnModelEvent(this, new ModelEventArgs
                     {
@@ -304,11 +489,35 @@ namespace SPMeta2.CSOM.ModelHandlers
 
                 context.ExecuteQueryWithTrace();
 
+                if (webPartAddedDefinition != null && webPartAddedDefinition.ServerObjectIsNull == false)
+                {
+                    existingWebPart = webPartAddedDefinition.WebPart;
+                    webPartStoreKey = webPartAddedDefinition.Id;
+                }
+
+                InternalOnAfterWebPartProvision(new WebPartProcessingContext
+                {
+                    ListItemModelHost = listItemModelHost,
+                    WebPartDefinition = webPartModel,
+                    WebPartStoreKey = webPartStoreKey
+                });
+
                 return pageFile;
-            });
+            }, doesFileHasListItem);
         }
 
-        private void HandleWikiPageProvision(ListItem listItem, WebPartDefinitionBase webpartModel)
+        protected virtual void InternalOnBeforeWebPartProvision(WebPartProcessingContext context)
+        {
+
+        }
+
+        protected virtual void InternalOnAfterWebPartProvision(WebPartProcessingContext context)
+        {
+
+        }
+
+        private void HandleWikiPageProvision(ListItem listItem,
+            WebPartDefinitionBase webpartModel, Guid? webPartStoreKey, Guid? oldWebParKey)
         {
             if (!webpartModel.AddToPageContent)
                 return;
@@ -339,27 +548,58 @@ namespace SPMeta2.CSOM.ModelHandlers
 
             var wikiTemplate = new StringBuilder();
 
-            var wpId = webpartModel.Id
-                .Replace("g_", string.Empty)
-                .Replace("_", "-");
+            var existingWebPartId = string.Empty;
+
+            var definitionWebPartId = webpartModel.Id.ToString()
+                                      .Replace("g_", string.Empty)
+                                      .Replace("_", "-"); ;
+
+            var upcomingWebPartId = definitionWebPartId;
+
+            /// aa....
+            /// extremely unfortunate 
+            if (webpartModel is XsltListViewWebPartDefinition)
+            {
+                upcomingWebPartId = webPartStoreKey.ToString()
+                                      .Replace("g_", string.Empty)
+                                      .Replace("_", "-"); ;
+            }
+
+            if (!oldWebParKey.HasGuidValue())
+            {
+                // first provision
+                existingWebPartId = webPartStoreKey.ToString()
+                                      .Replace("g_", string.Empty)
+                                      .Replace("_", "-");
+            }
+            else
+            {
+                // second, so that we had web part and use that ID
+                existingWebPartId = oldWebParKey.ToString()
+                                      .Replace("g_", string.Empty)
+                                      .Replace("_", "-");
+            }
 
             var content = listItem[targetFieldName] == null
                 ? string.Empty
                 : listItem[targetFieldName].ToString();
 
-            wikiTemplate.AppendFormat(
-                "​​​​​​​​​​​​​​​​​​​​​​<div class='ms-rtestate-read ms-rte-wpbox' contentEditable='false'>");
-            wikiTemplate.AppendFormat("     <div class='ms-rtestate-read {0}' id='div_{0}'>", wpId);
+            // actual ID will be replaced later
+            wikiTemplate.AppendFormat("​​​​​​​​​​​​​​​​​​​​​​<div class='ms-rtestate-read ms-rte-wpbox' contentEditable='false'>");
+            wikiTemplate.Append("     <div class='ms-rtestate-read {0}' id='div_{0}'>");
             wikiTemplate.AppendFormat("     </div>");
             wikiTemplate.AppendFormat("</div>");
 
-            var wikiResult = wikiTemplate.ToString();
+            var wikiTemplateOutput = wikiTemplate.ToString();
 
             if (string.IsNullOrEmpty(content))
             {
-                TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "Page content is empty Generating new one.");
+                // page is empty, pre-generating HTML
+                // pushing web part as the current WebPart Key
+                TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall,
+                    "Page content is empty Generating new one.");
 
-                content = wikiResult;
+                content = string.Format(wikiTemplateOutput, upcomingWebPartId);
 
                 listItem[targetFieldName] = content;
                 listItem.Update();
@@ -368,25 +608,98 @@ namespace SPMeta2.CSOM.ModelHandlers
             }
             else
             {
-                if (content.ToUpper().IndexOf(wpId.ToUpper()) == -1)
+                // we had web part on the page
+                // so we need to change the ID
+                if (oldWebParKey.HasGuidValue())
                 {
-                    TraceService.VerboseFormat((int)LogEventId.ModelProvisionCoreCall, "Replacing web part with ID: [{0}] on the page content.", wpId);
+                    // was old on the page?
+                    if (content.ToUpper().IndexOf(existingWebPartId.ToUpper()) != -1)
+                    {
+                        // yes, replacing ID
+                        TraceService.VerboseFormat((int)LogEventId.ModelProvisionCoreCall,
+                            string.Format("Replacing web part with ID: [{0}] to [{1}] on the page content.",
+                                existingWebPartId, upcomingWebPartId),
+                            null);
 
-                    content += wikiResult;
+                        content = content.Replace(existingWebPartId, upcomingWebPartId);
 
-                    listItem[targetFieldName] = content;
-                    listItem.Update();
+                        listItem[targetFieldName] = content;
+                        listItem.Update();
 
-                    context.ExecuteQueryWithTrace();
+                        context.ExecuteQueryWithTrace();
+                    }
+                    // original from the definigion?
+                    else if (content.ToUpper().IndexOf(definitionWebPartId.ToUpper()) != -1)
+                    {
+                        // yes, replacing ID
+                        TraceService.VerboseFormat((int)LogEventId.ModelProvisionCoreCall,
+                            string.Format("Replacing web part with ID: [{0}] to [{1}] on the page content.",
+                                existingWebPartId, upcomingWebPartId),
+                            null);
+
+                        content = content.Replace(definitionWebPartId, upcomingWebPartId);
+
+                        listItem[targetFieldName] = content;
+                        listItem.Update();
+
+                        context.ExecuteQueryWithTrace();
+                    }
+                    else
+                    {
+                        // adding new, from scratch 
+                        TraceService.WarningFormat((int)LogEventId.ModelProvisionCoreCall,
+                            "Cannot find web part ID: [{0}] the page content. Adding a new one.",
+                            new object[]
+                            {
+                                existingWebPartId
+                            });
+
+                        content = string.Format(wikiTemplateOutput, upcomingWebPartId);
+
+                        listItem[targetFieldName] = content;
+                        listItem.Update();
+
+                        context.ExecuteQueryWithTrace();
+                    }
                 }
                 else
                 {
-                    TraceService.WarningFormat((int)LogEventId.ModelProvisionCoreCall,
-                        "Cannot find web part ID: [{0}] the page content. Provision won't add web part on the page content.",
-                        new object[]
-                        {
-                           wpId
-                        });
+                    // first provision, no web parts on the wiki page
+
+                    // there should be a definition based web part id in the template
+                    // updatting to a upcoming ID
+                    if (content.ToUpper().IndexOf(definitionWebPartId.ToUpper()) != -1)
+                    {
+                        // yes, replacing ID
+                        TraceService.VerboseFormat((int)LogEventId.ModelProvisionCoreCall,
+                            string.Format("Replacing web part with ID: [{0}] to [{1}] on the page content.",
+                                definitionWebPartId, upcomingWebPartId),
+                            null);
+
+                        content = content.Replace(definitionWebPartId, upcomingWebPartId);
+
+                        listItem[targetFieldName] = content;
+                        listItem.Update();
+
+                        context.ExecuteQueryWithTrace();
+                    }
+                    else
+                    {
+                        // adding new, from scratch 
+                        TraceService.WarningFormat((int)LogEventId.ModelProvisionCoreCall,
+                            "Cannot find web part ID: [{0}] the page content. Adding a new one.",
+                            new object[]
+                            {
+                                existingWebPartId
+                            });
+
+                        content = string.Format(wikiTemplateOutput, upcomingWebPartId);
+
+                        listItem[targetFieldName] = content;
+                        listItem.Update();
+
+                        context.ExecuteQueryWithTrace();
+                    }
                 }
             }
         }

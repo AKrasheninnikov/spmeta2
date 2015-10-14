@@ -20,8 +20,13 @@ namespace SPMeta2.SSOM.ModelHandlers
             get { return typeof(SecurityGroupLinkDefinition); }
         }
 
-        public override void WithResolvingModelHost(object modelHost, DefinitionBase model, Type childModelType, Action<object> action)
+        public override void WithResolvingModelHost(ModelHostResolveContext modelHostContext)
         {
+            var modelHost = modelHostContext.ModelHost;
+            var model = modelHostContext.Model;
+            var childModelType = modelHostContext.ChildModelType;
+            var action = modelHostContext.Action;
+
             var securableObject = ExtractSecurableObject(modelHost);
 
             if (securableObject is SPSecurableObject)
@@ -46,31 +51,9 @@ namespace SPMeta2.SSOM.ModelHandlers
             }
         }
 
-        private SPWeb ExtractWeb(object modelHost)
-        {
-            if (modelHost is SPWeb)
-                return modelHost as SPWeb;
 
-            if (modelHost is SPList)
-                return (modelHost as SPList).ParentWeb;
 
-            if (modelHost is SPListItem)
-                return (modelHost as SPListItem).ParentList.ParentWeb;
 
-            if (modelHost is SiteModelHost)
-                return (modelHost as SiteModelHost).HostSite.RootWeb;
-
-            if (modelHost is WebModelHost)
-                return (modelHost as WebModelHost).HostWeb;
-
-            if (modelHost is ListModelHost)
-                return (modelHost as ListModelHost).HostList.ParentWeb;
-
-            if (modelHost is FolderModelHost)
-                return (modelHost as FolderModelHost).CurrentLibraryFolder.ParentWeb;
-
-            throw new Exception(string.Format("modelHost with type [{0}] is not supported.", modelHost.GetType()));
-        }
 
         protected SPGroup ResolveSecurityGroup(SPWeb web, SecurityGroupLinkDefinition securityGroupLinkModel)
         {
@@ -152,30 +135,13 @@ namespace SPMeta2.SSOM.ModelHandlers
 
             if (isNewRoleAssignment)
             {
-                // default one, it will be removed later
-                // we need at least one role for a new role assignment created
-                // it will be deleted later
-
-                var dummyRole = web.RoleDefinitions.GetByType(SPRoleType.Reader);
-
-                if (!roleAssignment.RoleDefinitionBindings.Contains(dummyRole))
-                    roleAssignment.RoleDefinitionBindings.Add(dummyRole);
+                // add default guest role as hidden one
+                // we need to at least one role in order to create assignment 
+                // further provision will chech of there is only one role - Reader, and will remove it
+                roleAssignment.RoleDefinitionBindings.Add(web.RoleDefinitions.GetByType(SPRoleType.Reader));
             }
 
             securableObject.RoleAssignments.Add(roleAssignment);
-
-            if (isNewRoleAssignment)
-            {
-                // removing dummy role for a new assignment created
-                var tmpAssignment = securableObject.RoleAssignments
-                                                       .OfType<SPRoleAssignment>()
-                                                       .FirstOrDefault(a => a.Member.ID == securityGroup.ID);
-
-                while (tmpAssignment.RoleDefinitionBindings.Count > 0)
-                    tmpAssignment.RoleDefinitionBindings.Remove(0);
-
-                tmpAssignment.Update();
-            }
 
             InvokeOnModelEvent(this, new ModelEventArgs
             {
@@ -189,28 +155,14 @@ namespace SPMeta2.SSOM.ModelHandlers
             });
         }
 
-        protected SPSecurableObject ExtractSecurableObject(object modelHost)
+        protected virtual SPWeb ExtractWeb(object modelHost)
         {
-            if (modelHost is SPSecurableObject)
-                return modelHost as SPSecurableObject;
+            return SecurableHelper.ExtractWeb(modelHost);
+        }
 
-            if (modelHost is SiteModelHost)
-                return (modelHost as SiteModelHost).HostSite.RootWeb;
-
-            if (modelHost is WebModelHost)
-                return (modelHost as WebModelHost).HostWeb;
-
-            if (modelHost is ListModelHost)
-                return (modelHost as ListModelHost).HostList;
-
-            if (modelHost is FolderModelHost)
-                return (modelHost as FolderModelHost).CurrentLibraryFolder.Item;
-
-            if (modelHost is WebpartPageModelHost)
-                return (modelHost as WebpartPageModelHost).PageListItem;
-
-            throw new SPMeta2NotImplementedException(string.Format("Model host of type:[{0}] is not supported by SecurityGroupLinkModelHandler yet.",
-                modelHost.GetType()));
+        protected virtual SPSecurableObject ExtractSecurableObject(object modelHost)
+        {
+            return SecurableHelper.ExtractSecurableObject(modelHost);
         }
 
         protected SPWeb GetWebFromSPSecurableObject(SPSecurableObject securableObject)
@@ -252,5 +204,81 @@ namespace SPMeta2.SSOM.ModelHandlers
         }
 
         #endregion
+    }
+
+    internal static class SecurableHelper
+    {
+        public static SPWeb ExtractWeb(object modelHost)
+        {
+            if (modelHost is SPWeb)
+                return modelHost as SPWeb;
+
+            if (modelHost is SPList)
+                return (modelHost as SPList).ParentWeb;
+
+            if (modelHost is SPListItem)
+                return (modelHost as SPListItem).ParentList.ParentWeb;
+
+            if (modelHost is SiteModelHost)
+                return (modelHost as SiteModelHost).HostSite.RootWeb;
+
+            if (modelHost is WebModelHost)
+                return (modelHost as WebModelHost).HostWeb;
+
+            if (modelHost is ListModelHost)
+                return (modelHost as ListModelHost).HostList.ParentWeb;
+
+            if (modelHost is FolderModelHost)
+            {
+                var folderHost = (modelHost as FolderModelHost);
+
+                if (folderHost.CurrentLibraryFolder != null)
+                    return folderHost.CurrentLibraryFolder.ParentWeb;
+                else
+                    return folderHost.CurrentListItem.ParentList.ParentWeb;
+            }
+
+            if (modelHost is SPFile)
+                return (modelHost as SPFile).Web;
+
+            if (modelHost is WebpartPageModelHost)
+                return (modelHost as WebpartPageModelHost).PageListItem.ParentList.ParentWeb;
+
+            throw new Exception(string.Format("modelHost with type [{0}] is not supported.", modelHost.GetType()));
+        }
+
+        public static SPSecurableObject ExtractSecurableObject(object modelHost)
+        {
+            if (modelHost is SPSecurableObject)
+                return modelHost as SPSecurableObject;
+
+            if (modelHost is SiteModelHost)
+                return (modelHost as SiteModelHost).HostSite.RootWeb;
+
+            if (modelHost is WebModelHost)
+                return (modelHost as WebModelHost).HostWeb;
+
+            if (modelHost is ListModelHost)
+                return (modelHost as ListModelHost).HostList;
+
+            if (modelHost is SPFile)
+                return (modelHost as SPFile).ListItemAllFields;
+
+            if (modelHost is FolderModelHost)
+            {
+                var folderHost = (modelHost as FolderModelHost);
+
+                if (folderHost.CurrentLibraryFolder != null)
+                    return folderHost.CurrentLibraryFolder.Item;
+                else
+                    return folderHost.CurrentListItem;
+            }
+
+            if (modelHost is WebpartPageModelHost)
+                return (modelHost as WebpartPageModelHost).PageListItem;
+
+            throw new SPMeta2NotImplementedException(string.Format("Model host of type:[{0}] is not supported by SecurityGroupLinkModelHandler yet.",
+                modelHost.GetType()));
+        }
     }
 }

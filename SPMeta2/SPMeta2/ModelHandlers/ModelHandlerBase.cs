@@ -64,29 +64,11 @@ namespace SPMeta2.ModelHandlers
         /// <summary>
         /// Resolves a new model host per particular child definition type.
         /// </summary>
-        /// <param name="modelHost"></param>
-        /// <param name="model"></param>
-        /// <param name="childModelType"></param>
-        /// <param name="action"></param>
-        [Obsolete("Use WithResolvingModelHost(ModelHostContext context) method instead.")]
-        public virtual void WithResolvingModelHost(object modelHost, DefinitionBase model, Type childModelType, Action<object> action)
-        {
-            action(modelHost);
-        }
-
-        /// <summary>
-        /// Resolves a new model host per particular child definition type.
-        /// </summary>
         /// <param name="context"></param>
         public virtual void WithResolvingModelHost(ModelHostResolveContext context)
         {
-            WithResolvingModelHost(
-                context.ModelHost,
-                context.Model,
-                context.ChildModelType,
-                context.Action);
+            context.Action(context.ModelHost);
         }
-
 
         /// <summary>
         /// Promotes a model event outside of the model handler.
@@ -95,7 +77,7 @@ namespace SPMeta2.ModelHandlers
         /// <param name="args"></param>
         protected void InvokeOnModelEvent(object sender, ModelEventArgs args)
         {
-            TraceService.InformationFormat((int)LogEventId.CoreCalls, "Entering InvokeOnModelEvent with sender: [{0}] and args: [{1}]",
+            TraceService.VerboseFormat((int)LogEventId.CoreCalls, "Entering InvokeOnModelEvent with sender: [{0}] and args: [{1}]",
                 new object[] { sender, args });
 
             if (OnModelEvent != null)
@@ -111,7 +93,7 @@ namespace SPMeta2.ModelHandlers
                 TraceService.Verbose((int)LogEventId.CoreCalls, "OnModelEvent is NULL. Skipping.");
             }
 
-            TraceService.InformationFormat((int)LogEventId.CoreCalls, "Leaving InvokeOnModelEvent with sender: [{0}] and args: [{1}]",
+            TraceService.VerboseFormat((int)LogEventId.CoreCalls, "Leaving InvokeOnModelEvent with sender: [{0}] and args: [{1}]",
                  new object[] { sender, args });
         }
 

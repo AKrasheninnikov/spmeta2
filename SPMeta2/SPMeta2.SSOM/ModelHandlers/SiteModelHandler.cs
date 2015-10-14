@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Reflection;
 using Microsoft.SharePoint;
 using SPMeta2.Definitions;
 using SPMeta2.ModelHandlers;
@@ -33,10 +34,27 @@ namespace SPMeta2.SSOM.ModelHandlers
         {
             var siteCollectionUrl = SPUrlUtility.CombineUrl(definition.PrefixName, definition.Url);
 
+            if (siteCollectionUrl.StartsWith("/"))
+                siteCollectionUrl = siteCollectionUrl.Substring(1, siteCollectionUrl.Length - 1);
+
             if (webApp.Sites.Names.Contains(siteCollectionUrl))
                 return webApp.Sites[siteCollectionUrl];
 
             return null;
+        }
+
+        public override void WithResolvingModelHost(ModelHostResolveContext context)
+        {
+            base.WithResolvingModelHost(context);
+
+            ForceInvalidateSite((context.ModelHost as SiteModelHost).HostSite);
+        }
+
+        private void ForceInvalidateSite(SPSite site)
+        {
+            // here we invalidate Receivers Collection as somehow it does not get updated during adding new receivers
+            var m_eventReceiversField = typeof(SPSite).GetField("m_eventReceivers", BindingFlags.NonPublic | BindingFlags.GetField | BindingFlags.Instance);
+            m_eventReceiversField.SetValue(site, null);
         }
 
         private void DeploySite(WebApplicationModelHost webAppModelHost, Microsoft.SharePoint.Administration.SPWebApplication webApp, SiteDefinition siteModel)

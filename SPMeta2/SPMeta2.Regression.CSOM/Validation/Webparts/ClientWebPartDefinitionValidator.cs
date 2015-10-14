@@ -9,7 +9,7 @@ using SPMeta2.Utils;
 
 namespace SPMeta2.Regression.CSOM.Validation.Webparts
 {
-    public class ClientWebPartDefinitionValidator : WebPartModelHandler
+    public class ClientWebPartDefinitionValidator : WebPartDefinitionValidator
     {
         public override Type TargetType
         {
@@ -18,12 +18,14 @@ namespace SPMeta2.Regression.CSOM.Validation.Webparts
 
         public override void DeployModel(object modelHost, DefinitionBase model)
         {
+            base.DeployModel(modelHost, model);
+
             var listItemModelHost = modelHost.WithAssertAndCast<ListItemModelHost>("modelHost", value => value.RequireNotNull());
             var definition = model.WithAssertAndCast<ClientWebPartDefinition>("model", value => value.RequireNotNull());
 
-            var pageItem = listItemModelHost.HostListItem;
+            //var pageItem = listItemModelHost.HostListItem;
 
-            WithWithExistingWebPart(pageItem, definition, spObject =>
+            WithExistingWebPart(listItemModelHost.HostFile, definition, spObject =>
             {
                 var assert = ServiceFactory.AssertService
                                            .NewAssert(model, definition, spObject)

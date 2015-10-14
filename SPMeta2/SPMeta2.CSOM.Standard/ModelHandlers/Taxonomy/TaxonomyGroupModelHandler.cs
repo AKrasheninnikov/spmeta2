@@ -35,13 +35,19 @@ namespace SPMeta2.CSOM.Standard.ModelHandlers.Taxonomy
             DeployTaxonomyGroup(modelHost, siteModelHost, groupModel);
         }
 
-        public override void WithResolvingModelHost(object modelHost, DefinitionBase model, Type childModelType, Action<object> action)
+        public override void WithResolvingModelHost(ModelHostResolveContext modelHostContext)
         {
+            var modelHost = modelHostContext.ModelHost;
+            var model = modelHostContext.Model;
+            var childModelType = modelHostContext.ChildModelType;
+            var action = modelHostContext.Action;
+
+
             var storeModelHost = modelHost.WithAssertAndCast<TermStoreModelHost>("modelHost", value => value.RequireNotNull());
             var groupModel = model.WithAssertAndCast<TaxonomyTermGroupDefinition>("model", value => value.RequireNotNull());
 
             var termStore = storeModelHost.HostTermStore;
-            var currentGroup = FindGroup(termStore, groupModel);
+            var currentGroup = FindGroup(storeModelHost, groupModel);
 
             action(new TermGroupModelHost
             {
@@ -50,14 +56,50 @@ namespace SPMeta2.CSOM.Standard.ModelHandlers.Taxonomy
             });
         }
 
-        protected TermGroup FindGroup(TermStore termStore, TaxonomyTermGroupDefinition groupModel)
+        protected TermGroup FindSiteCollectionGroup(TermStoreModelHost storeModelHost, TaxonomyTermGroupDefinition groupModel)
         {
+            var termStore = storeModelHost.HostTermStore;
+            var site = storeModelHost.HostSite;
+
+            var context = termStore.Context;
+
+            TermGroup currentGroup = termStore.GetSiteCollectionGroup(site, false);
+
+            context.Load(currentGroup);
+            context.ExecuteQueryWithTrace();
+            return currentGroup;
+        }
+
+        protected TermGroup FindGroup(TermStoreModelHost storeModelHost, TaxonomyTermGroupDefinition groupModel)
+        {
+            var termStore = storeModelHost.HostTermStore;
             var context = termStore.Context;
 
             TermGroup currentGroup = null;
 
+            if (groupModel.IsSiteCollectionGroup)
+            {
+                currentGroup = FindSiteCollectionGroup(storeModelHost, groupModel);
+                return currentGroup;
+            }
+
             if (groupModel.Id.HasValue)
-                currentGroup = termStore.GetGroup(groupModel.Id.Value);
+            {
+                var scope = new ExceptionHandlingScope(context);
+                using (scope.StartScope())
+                {
+                    using (scope.StartTry())
+                    {
+                        currentGroup = termStore.Groups.GetById(groupModel.Id.Value);
+                        context.Load(currentGroup);
+                    }
+
+                    using (scope.StartCatch())
+                    {
+
+                    }
+                }
+            }
             else if (!string.IsNullOrEmpty(groupModel.Name))
             {
                 var scope = new ExceptionHandlingScope(context);
@@ -94,7 +136,7 @@ namespace SPMeta2.CSOM.Standard.ModelHandlers.Taxonomy
         private void DeployTaxonomyGroup(object modelHost, TermStoreModelHost siteModelHost, TaxonomyTermGroupDefinition groupModel)
         {
             var termStore = siteModelHost.HostTermStore;
-            var currentGroup = FindGroup(termStore, groupModel);
+            var currentGroup = FindGroup(siteModelHost, groupModel);
 
             InvokeOnModelEvent(this, new ModelEventArgs
             {
@@ -142,6 +184,9 @@ namespace SPMeta2.CSOM.Standard.ModelHandlers.Taxonomy
                     ModelHost = modelHost
                 });
             }
+
+            termStore.CommitAll();
+            termStore.Context.ExecuteQueryWithTrace();
         }
 
         #endregion

@@ -21,6 +21,7 @@ namespace SPMeta2.BuiltInDefinitions
         {
             Title = "Style Library",
             Url = "Style Library",
+            CustomUrl = "Style Library",
             Description = "",
             TemplateType = BuiltInListTemplateTypeId.DocumentLibrary,
             ContentTypesEnabled = true
@@ -34,17 +35,31 @@ namespace SPMeta2.BuiltInDefinitions
             Title = "Site Pages",
             TemplateType = BuiltInListTemplateTypeId.WebPageLibrary,
             Url = "SitePages",
+            CustomUrl = "SitePages",
             ContentTypesEnabled = false
         };
 
         /// <summary>
-        /// 'Shared Documents' library shortcut.
+        /// 'Documents' library shortcut.
         /// </summary>
         public static ListDefinition Documents = new ListDefinition
         {
             Title = "Documents",
             TemplateType = BuiltInListTemplateTypeId.DocumentLibrary,
+            Url = "Documents",
+            CustomUrl = "Documents",
+            ContentTypesEnabled = true
+        };
+
+        /// <summary>
+        /// 'Shared Documents' library shortcut.
+        /// </summary>
+        public static ListDefinition SharedDocuments = new ListDefinition
+        {
+            Title = "Documents",
+            TemplateType = BuiltInListTemplateTypeId.DocumentLibrary,
             Url = "Shared Documents",
+            CustomUrl = "Shared Documents",
             ContentTypesEnabled = true
         };
 
@@ -56,6 +71,7 @@ namespace SPMeta2.BuiltInDefinitions
             Title = "Site Assets",
             TemplateType = BuiltInListTemplateTypeId.DocumentLibrary,
             Url = "SiteAssets",
+            CustomUrl = "SiteAssets",
             ContentTypesEnabled = true
         };
 
@@ -67,6 +83,7 @@ namespace SPMeta2.BuiltInDefinitions
             Title = "Pages",
             TemplateType = 850,
             Url = "Pages",
+            CustomUrl = "Pages",
             ContentTypesEnabled = true
         };
 
@@ -74,71 +91,249 @@ namespace SPMeta2.BuiltInDefinitions
 
         #region lists
 
+        /// <summary>
+        /// 'Cache Profiles' list shortcut.
+        /// </summary>
+        public static ListDefinition CacheProfiles = new ListDefinition
+        {
+            Title = "Cache Profiles",
+            TemplateType = BuiltInListTemplateTypeId.GenericList,
+            Url = "Cache Profiles",
+            CustomUrl = "Cache Profiles",
+            ContentTypesEnabled = true,
+            Hidden = true
+        };
+
+        /// <summary>
+        /// 'Composed Looks' list shortcut.
+        /// </summary>
+        public static ListDefinition ComposedLooks = new ListDefinition
+        {
+            Title = "Composed Looks",
+            TemplateType = BuiltInListTemplateTypeId.GenericList,
+            Url = "_catalogs/design",
+            CustomUrl = "_catalogs/design",
+            ContentTypesEnabled = true,
+            Hidden = true
+        };
+
+        /// <summary>
+        /// 'Device Channels' list shortcut.
+        /// </summary>
+        public static ListDefinition DeviceChannels = new ListDefinition
+        {
+            Title = "Composed Looks",
+            TemplateType = BuiltInListTemplateTypeId.GenericList,
+            Url = "DeviceChannels",
+            CustomUrl = "DeviceChannels",
+            ContentTypesEnabled = true,
+            Hidden = true
+        };
+
+        /// <summary>
+        /// 'Form Templates' list shortcut.
+        /// </summary>
+        public static ListDefinition FormTemplates = new ListDefinition
+        {
+            Title = "Form Templates",
+            TemplateType = BuiltInListTemplateTypeId.DocumentLibrary,
+            Url = "FormServerTemplates",
+            CustomUrl = "FormServerTemplates",
+            ContentTypesEnabled = true
+        };
+
+        /// <summary>
+        /// 'Publishing Images' list shortcut.
+        /// </summary>
+        public static ListDefinition Images = new ListDefinition
+        {
+            Title = "Images",
+            TemplateType = 851,
+            Url = "PublishingImages",
+            CustomUrl = "PublishingImages",
+            ContentTypesEnabled = true,
+        };
+
+        /// <summary>
+        /// 'List Template Gallery' list shortcut.
+        /// </summary>
+        public static ListDefinition ListTemplateGallery = new ListDefinition
+        {
+            Title = "List Template Gallery",
+            TemplateType = 114,
+            Url = "_catalogs/lt",
+            CustomUrl = "_catalogs/lt",
+            ContentTypesEnabled = false,
+        };
+
+        /// <summary>
+        /// 'Reusable Content' list shortcut.
+        /// </summary>
+        public static ListDefinition ReusableContent = new ListDefinition
+        {
+            Title = "Reusable Content",
+            TemplateType = 100,
+            //Url = "ReusableContent",
+            CustomUrl = "ReusableContent",
+            ContentTypesEnabled = true,
+        };
+
+        /// <summary>
+        /// 'Site Collection Documents' list shortcut.
+        /// </summary>
+        public static ListDefinition SiteCollectionDocuments = new ListDefinition
+        {
+            Title = "Site Collection Documents",
+            TemplateType = 101,
+            Url = "SiteCollectionDocuments",
+            CustomUrl = "SiteCollectionDocuments",
+            ContentTypesEnabled = true,
+        };
+
+
+        /// <summary>
+        /// 'Site Collection Images' list shortcut.
+        /// </summary>
+        public static ListDefinition SiteCollectionImages = new ListDefinition
+        {
+            Title = "Site Collection Images",
+            TemplateType = 851,
+            Url = "SiteCollectionImages",
+            CustomUrl = "SiteCollectionImages",
+            ContentTypesEnabled = true,
+        };
+
+        /// <summary>
+        /// 'Suggested Content Browser Locations' list shortcut.
+        /// </summary>
+        public static ListDefinition SuggestedContentBrowserLocations = new ListDefinition
+        {
+            Title = "Suggested Content Browser Locations",
+            TemplateType = 100,
+            Url = "PublishedLinks",
+            CustomUrl = "PublishedLinks",
+            ContentTypesEnabled = true,
+        };
+
+        /// <summary>
+        /// 'TaxonomyHiddenList' list shortcut.
+        /// </summary>
+        public static ListDefinition TaxonomyHiddenList = new ListDefinition
+        {
+            Title = "TaxonomyHiddenList",
+            TemplateType = 100,
+            Url = "TaxonomyHiddenList",
+            CustomUrl = "Lists/TaxonomyHiddenList",
+            ContentTypesEnabled = true,
+        };
+
+        /// <summary>
+        /// 'Variation Labels' list shortcut.
+        /// </summary>
+        public static ListDefinition VariationLabels = new ListDefinition
+        {
+            Title = "Variation Labels",
+            TemplateType = 100,
+            Url = "Variation Labels",
+            CustomUrl = "Variation Labels",
+            ContentTypesEnabled = true,
+        };
+
+        /// <summary>
+        /// 'Workflow Tasks' list shortcut.
+        /// </summary>
+        public static ListDefinition WorkflowTasks = new ListDefinition
+        {
+            Title = "Workflow Tasks",
+            TemplateType = 107,
+            Url = "WorkflowTasks",
+            CustomUrl = "WorkflowTasks",
+            ContentTypesEnabled = true,
+        };
 
         #endregion
 
         #region catalogs
 
+
         /// <summary>
         /// Out of the box SharePoint list and libraries under "_catalogs" category.
         /// </summary>
-        public static class Calalogs
+        public static class Catalogs
         {
             public static ListDefinition AppData = new ListDefinition
             {
                 TemplateType = BuiltInListTemplateTypeId.GenericList,
-                Url = "_catalogs/appdata"
+                Url = "_catalogs/appdata",
+                CustomUrl = "_catalogs/appdata",
             };
 
             public static ListDefinition Design = new ListDefinition
             {
-                TemplateType = BuiltInListTemplateTypeId.GenericList,
-                Url = "_catalogs/design"
+                Title = "Composed Looks",
+                TemplateType = BuiltInListTemplateTypeId.DesignCatalog,
+                Url = "_catalogs/design",
+                CustomUrl = "_catalogs/design",
+                ContentTypesEnabled = false,
+                Hidden = false
             };
 
             public static ListDefinition Users = new ListDefinition
             {
-                TemplateType = BuiltInListTemplateTypeId.GenericList,
-                Url = "_catalogs/users"
+                Title = "User Information List",
+                TemplateType = BuiltInListTemplateTypeId.UserInformation,
+                Url = "_catalogs/users",
+                CustomUrl = "_catalogs/users",
             };
 
             public static ListDefinition ListTemplates = new ListDefinition
             {
-                TemplateType = BuiltInListTemplateTypeId.DocumentLibrary,
-                Url = "_catalogs/lt"
+                Title = "List Template Gallery",
+                TemplateType = BuiltInListTemplateTypeId.ListTemplateCatalog,
+                Url = "_catalogs/lt",
+                CustomUrl = "_catalogs/lt",
             };
 
             public static ListDefinition MasterPage = new ListDefinition
             {
-                TemplateType = BuiltInListTemplateTypeId.DocumentLibrary,
+                Title = "Master Page Gallery",
+                TemplateType = BuiltInListTemplateTypeId.MasterPageCatalog,
                 Url = "_catalogs/masterpage",
+                CustomUrl = "_catalogs/masterpage",
             };
 
             public static ListDefinition Solutions = new ListDefinition
             {
-                TemplateType = BuiltInListTemplateTypeId.DocumentLibrary,
-                Url = "_catalogs/solutions"
+                Title = "Solution Gallery",
+                TemplateType = BuiltInListTemplateTypeId.SolutionCatalog,
+                Url = "_catalogs/solutions",
+                CustomUrl = "_catalogs/solutions"
             };
 
             public static ListDefinition Theme = new ListDefinition
             {
-                TemplateType = BuiltInListTemplateTypeId.DocumentLibrary,
-                Url = "_catalogs/theme"
+                Title = "Theme Gallery",
+                TemplateType = BuiltInListTemplateTypeId.ThemeCatalog,
+                Url = "_catalogs/theme",
+                CustomUrl = "_catalogs/theme"
             };
 
             public static ListDefinition WfPub = new ListDefinition
             {
                 TemplateType = BuiltInListTemplateTypeId.DocumentLibrary,
-                Url = "_catalogs/wfpub"
+                Url = "_catalogs/wfpub",
+                CustomUrl = "_catalogs/wfpub"
             };
 
             public static ListDefinition Wp = new ListDefinition
             {
-                TemplateType = BuiltInListTemplateTypeId.DocumentLibrary,
-                Url = "_catalogs/wp"
+                Title = "Web Part Gallery",
+                TemplateType = BuiltInListTemplateTypeId.WebPartCatalog,
+                Url = "_catalogs/wp",
+                CustomUrl = "_catalogs/wp"
             };
-        } 
-        
+        }
+
         #endregion
     }
 }

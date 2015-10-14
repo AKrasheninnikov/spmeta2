@@ -1,13 +1,11 @@
 ﻿using System;
 using Microsoft.SharePoint.Client;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SPMeta2.Containers.Assertion;
+using SPMeta2.CSOM.Extensions;
 using SPMeta2.CSOM.ModelHandlers;
 using SPMeta2.CSOM.ModelHosts;
 using SPMeta2.Definitions;
-using SPMeta2.Definitions.Base;
-using SPMeta2.Regression.Utils;
 using SPMeta2.Utils;
-using SPMeta2.Regression.Assertion;
 
 namespace SPMeta2.Regression.CSOM.Validation
 {
@@ -24,14 +22,18 @@ namespace SPMeta2.Regression.CSOM.Validation
 
             // well, this should be pulled up to the site handler and init Load/Exec query
             context.Load(web, tmpWeb => tmpWeb.SiteGroups);
-            context.ExecuteQuery();
+            context.ExecuteQueryWithTrace();
 
             var spObject = FindRoleDefinition(web.RoleDefinitions, definition.Name);
 
             var assert = ServiceFactory.AssertService
                    .NewAssert(definition, spObject)
-                         .ShouldBeEqual(m => m.Name, o => o.Name)
-                         .ShouldBeEqual(m => m.Description, o => o.Description);
+                         .ShouldBeEqual(m => m.Name, o => o.Name);
+
+            if (!string.IsNullOrEmpty(definition.Description))
+                assert.ShouldBeEqual(m => m.Description, o => o.Description);
+            else
+                assert.SkipProperty(m => m.Description);
 
             assert
                .ShouldBeEqual((p, s, d) =>

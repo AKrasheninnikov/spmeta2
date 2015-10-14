@@ -35,6 +35,7 @@ namespace SPMeta2.CSOM.ModelHandlers.Fields
             var typedField = field.Context.CastTo<FieldCalculated>(field);
 
             typedField.Formula = typedFieldModel.Formula ?? string.Empty;
+            typedField.OutputType = typedField.OutputType = (FieldType)Enum.Parse(typeof(FieldType), typedFieldModel.OutputType);
         }
 
         protected override void ProcessSPFieldXElement(XElement fieldTemplate, FieldDefinition fieldModel)
@@ -43,8 +44,12 @@ namespace SPMeta2.CSOM.ModelHandlers.Fields
 
             var typedFieldModel = fieldModel.WithAssertAndCast<CalculatedFieldDefinition>("model", value => value.RequireNotNull());
 
-            fieldTemplate.SetAttribute(BuiltInFieldAttributes.LCID, typedFieldModel.CurrencyLocaleId);
-            fieldTemplate.SetAttribute(BuiltInFieldAttributes.Formula, typedFieldModel.Formula);
+            if (typedFieldModel.CurrencyLocaleId.HasValue)
+                fieldTemplate.SetAttribute(BuiltInFieldAttributes.LCID, typedFieldModel.CurrencyLocaleId);
+
+            // should be a new XML node
+            var formulaNode = new XElement(BuiltInFieldAttributes.Formula, typedFieldModel.Formula);
+            fieldTemplate.Add(formulaNode);
 
             fieldTemplate.SetAttribute(BuiltInFieldAttributes.Format, (int)Enum.Parse(typeof(DateTimeFieldFormatType), typedFieldModel.DateFormat));
 

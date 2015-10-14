@@ -26,30 +26,55 @@ namespace SPMeta2.CSOM.ModelHandlers
 
         #region methods
 
-        public override void WithResolvingModelHost(object modelHost, DefinitionBase model, Type childModelType, Action<object> action)
+        public override void WithResolvingModelHost(ModelHostResolveContext modelHostContext)
         {
+            var modelHost = modelHostContext.ModelHost;
+            var model = modelHostContext.Model;
+            var childModelType = modelHostContext.ChildModelType;
+            var action = modelHostContext.Action;
+
+
             var folderModelHost = modelHost.WithAssertAndCast<FolderModelHost>("modelHost", value => value.RequireNotNull());
             var wikiPageModel = model.WithAssertAndCast<WikiPageDefinition>("model", value => value.RequireNotNull());
 
             var web = folderModelHost.CurrentList.ParentWeb;
-            var folder = folderModelHost.CurrentLibraryFolder;
+            var folder = folderModelHost.CurrentListFolder;
 
             var currentPage = GetWikiPageFile(web, folder, wikiPageModel);
 
             var context = folder.Context;
 
-            var currentListItem = currentPage.ListItemAllFields;
-            context.Load(currentListItem);
-            context.ExecuteQueryWithTrace();
-
-            if (typeof(WebPartDefinitionBase).IsAssignableFrom(childModelType))
+            if (typeof(WebPartDefinitionBase).IsAssignableFrom(childModelType)
+                    || childModelType == typeof(DeleteWebPartsDefinition))
             {
                 var listItemHost = ModelHostBase.Inherit<ListItemModelHost>(folderModelHost, itemHost =>
                 {
+                    itemHost.HostFolder = folderModelHost.CurrentListFolder;
+                    itemHost.HostListItem = folderModelHost.CurrentListItem;
+                    itemHost.HostFile = currentPage;
+                    itemHost.HostList = folderModelHost.CurrentList;
+                });
+
+                action(listItemHost);
+            }
+            else if (
+                typeof(BreakRoleInheritanceDefinition).IsAssignableFrom(childModelType) ||
+                typeof(SecurityGroupLinkDefinition).IsAssignableFrom(childModelType))
+            {
+                var listItemHost = ModelHostBase.Inherit<ListItemModelHost>(folderModelHost, itemHost =>
+                {
+                    var currentListItem = currentPage.ListItemAllFields;
+                    context.Load(currentListItem);
+                    context.ExecuteQueryWithTrace();
+
                     itemHost.HostListItem = currentListItem;
                 });
 
                 action(listItemHost);
+            }
+            else
+            {
+                action(currentPage);
             }
 
             context.ExecuteQueryWithTrace();
@@ -57,7 +82,12 @@ namespace SPMeta2.CSOM.ModelHandlers
 
         protected string GetSafeWikiPageFileName(WikiPageDefinition wikiPageModel)
         {
-            var pageName = wikiPageModel.FileName;
+            return GetSafeWikiPageFileName(wikiPageModel.FileName);
+        }
+
+        protected string GetSafeWikiPageFileName(string fileName)
+        {
+            var pageName = fileName;
             if (!pageName.EndsWith(".aspx")) pageName += ".aspx";
 
             return pageName;
@@ -68,7 +98,7 @@ namespace SPMeta2.CSOM.ModelHandlers
             var folderModelHost = modelHost.WithAssertAndCast<FolderModelHost>("modelHost", value => value.RequireNotNull());
             var wikiPageModel = model.WithAssertAndCast<WikiPageDefinition>("model", value => value.RequireNotNull());
 
-            var folder = folderModelHost.CurrentLibraryFolder;
+            var folder = folderModelHost.CurrentListFolder;
 
             DeployWikiPage(folderModelHost.CurrentList.ParentWeb, folder, wikiPageModel);
         }

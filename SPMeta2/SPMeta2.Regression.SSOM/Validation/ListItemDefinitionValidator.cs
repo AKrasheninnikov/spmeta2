@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
 using Microsoft.SharePoint;
 using SPMeta2.Definitions;
 using SPMeta2.Definitions.Base;
@@ -16,16 +16,33 @@ namespace SPMeta2.Regression.SSOM.Validation
     {
         public override void DeployModel(object modelHost, DefinitionBase model)
         {
-            var listModelHost = modelHost.WithAssertAndCast<ListModelHost>("modelHost", value => value.RequireNotNull());
             var definition = model.WithAssertAndCast<ListItemDefinition>("model", value => value.RequireNotNull());
 
-            var list = listModelHost.HostList;
-            var spObject = GetListItem(list, definition);
+            SPList list = null;
+            SPFolder rootFolder = null;
 
+            if (modelHost is ListModelHost)
+            {
+                list = (modelHost as ListModelHost).HostList;
+                rootFolder = (modelHost as ListModelHost).HostList.RootFolder;
+            }
+            else if (modelHost is FolderModelHost)
+            {
+                list = (modelHost as FolderModelHost).CurrentList;
+                rootFolder = (modelHost as FolderModelHost).CurrentListItem.Folder;
+            }
+
+            var spObject = FindListItem(list, rootFolder, definition);
+
+            ValidateProperties(spObject, definition);
+        }
+
+        protected virtual void ValidateProperties(SPListItem item, ListItemDefinition definition)
+        {
             var assert = ServiceFactory.AssertService
-                             .NewAssert(definition, spObject)
-                                   .ShouldNotBeNull(spObject)
-                                   .ShouldBeEqual(m => m.Title, o => o.Title);
+                          .NewAssert(definition, item)
+                                .ShouldNotBeNull(item)
+                                .ShouldBeEqual(m => m.Title, o => o.Title);
         }
     }
 }

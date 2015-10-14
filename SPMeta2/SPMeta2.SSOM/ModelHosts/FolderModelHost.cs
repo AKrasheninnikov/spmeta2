@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
 using Microsoft.SharePoint;
 
 namespace SPMeta2.SSOM.ModelHosts
@@ -17,5 +17,8 @@ namespace SPMeta2.SSOM.ModelHosts
 
         public SPWeb CurrentWeb { get; set; }
         public SPFolder CurrentWebFolder { get; set; }
+
+        public SPContentType CurrentContentType { get; set; }
+        public SPFolder CurrentContentTypeFolder { get; set; }
     }
 }

@@ -41,38 +41,160 @@ namespace SPMeta2.SSOM.Standard.ModelHandlers.Fields
 
             var site = GetCurrentSite();
 
-            var taxSession = new TaxonomySession(site);
-            TermStore tesmStore = null;
+            taxField.AllowMultipleValues = taxFieldModel.IsMulti;
 
-            if (taxFieldModel.UseDefaultSiteCollectionTermStore == true)
-                tesmStore = taxSession.DefaultSiteCollectionTermStore;
-            else if (taxFieldModel.SspId.HasValue)
-                tesmStore = taxSession.TermStores[taxFieldModel.SspId.Value];
-            else if (!string.IsNullOrEmpty(taxFieldModel.SspName))
-                tesmStore = taxSession.TermStores[taxFieldModel.SspName];
+            if (taxFieldModel.Open.HasValue)
+                taxField.Open = taxFieldModel.Open.Value;
 
-            TermSet termSet = null;
+            if (taxFieldModel.CreateValuesInEditForm.HasValue)
+                taxField.CreateValuesInEditForm = taxFieldModel.CreateValuesInEditForm.Value;
 
-            if (taxFieldModel.TermSetId.HasValue)
-                termSet = tesmStore.GetTermSet(taxFieldModel.TermSetId.Value);
-            else if (!string.IsNullOrEmpty(taxFieldModel.TermSetName))
-                termSet = tesmStore.GetTermSets(taxFieldModel.TermSetName, taxFieldModel.TermSetLCID).FirstOrDefault();
+            if (taxFieldModel.IsPathRendered.HasValue)
+                taxField.IsPathRendered = taxFieldModel.IsPathRendered.Value;
 
-            Term term = null;
+            TermStore tesmStore = LookupTermStore(site, taxFieldModel);
 
-            if (taxFieldModel.TermId.HasValue)
-                term = tesmStore.GetTerm(taxFieldModel.TermId.Value);
-            else if (!string.IsNullOrEmpty(taxFieldModel.TermName))
-                term = tesmStore.GetTerms(taxFieldModel.TermName, taxFieldModel.TermLCID, false).FirstOrDefault();
+            if (tesmStore != null)
+            {
+                taxField.SspId = tesmStore.Id;
 
-            taxField.SspId = tesmStore.Id;
+                TermSet termSet = LookupTermSet(site, tesmStore, taxFieldModel);
+                Term term = LookupTerm(site, tesmStore, taxFieldModel);
 
-            if (termSet != null)
-                taxField.TermSetId = termSet.Id;
-            else if (term != null)
-                taxField.TermSetId = term.Id;
+                if (termSet != null)
+                    taxField.TermSetId = termSet.Id;
+
+                if (term != null)
+                    taxField.AnchorId = term.Id;
+            }
         }
 
+        public static Term LookupTerm(SPSite site, TermStore tesmStore, TaxonomyFieldDefinition taxFieldModel)
+        {
+            Group currentGroup = null;
+
+            var termGroupName = taxFieldModel.TermGroupName;
+            var groupId = taxFieldModel.TermGroupId;
+            var isSiteCollectionGroup = taxFieldModel.IsSiteCollectionGroup;
+
+            if (!string.IsNullOrEmpty(termGroupName))
+            {
+                currentGroup = tesmStore.Groups.FirstOrDefault(g => g.Name.ToUpper() == termGroupName.ToUpper());
+            }
+            else if (groupId != null && groupId.HasGuidValue())
+            {
+                currentGroup = tesmStore.GetGroup(groupId.Value);
+            }
+            else if (isSiteCollectionGroup.HasValue && isSiteCollectionGroup.Value)
+            {
+                currentGroup = tesmStore.GetSiteCollectionGroup(site);
+            }
+
+            // TODO
+            // that should also check if the TermSet is there, so to scope the term 
+
+            if (currentGroup != null)
+            {
+                if (taxFieldModel.TermId.HasValue)
+                    return tesmStore.GetTerm(taxFieldModel.TermId.Value);
+
+                if (!string.IsNullOrEmpty(taxFieldModel.TermName))
+                {
+                    return tesmStore.GetTerms(taxFieldModel.TermName, taxFieldModel.TermLCID, false)
+                                    .FirstOrDefault(t => t.TermSet.Group.Name == currentGroup.Name);
+                }
+            }
+            else
+            {
+                if (taxFieldModel.TermId.HasValue)
+                    return tesmStore.GetTerm(taxFieldModel.TermId.Value);
+
+                if (!string.IsNullOrEmpty(taxFieldModel.TermName))
+                    return tesmStore.GetTerms(taxFieldModel.TermName, taxFieldModel.TermLCID, false).FirstOrDefault();
+            }
+
+            return null;
+        }
+
+        public static TermSet LookupTermSet(SPSite site, TermStore tesmStore, TaxonomyFieldDefinition taxFieldModel)
+        {
+            return LookupTermSet(tesmStore,
+
+                taxFieldModel.TermGroupName,
+                taxFieldModel.TermGroupId,
+                taxFieldModel.IsSiteCollectionGroup,
+
+                site,
+
+                taxFieldModel.TermSetName,
+                taxFieldModel.TermSetId,
+                taxFieldModel.TermSetLCID
+                );
+        }
+
+        // TermSets.FirstOrDefault(
+
+        [Obsolete("Use LookupTermSet(TermStore tesmStore,  string termGroupName, bool? isSiteCollectionGroup, Guid? groupid,string termSetName, Guid? termSetId, int termSetLCID) passing term group name / id as nulls")]
+        public static TermSet LookupTermSet(TermStore tesmStore,
+           string termSetName, Guid? termSetId, int termSetLCID)
+        {
+            return LookupTermSet(tesmStore, null, null, null, null, termSetName, termSetId, termSetLCID);
+        }
+
+        public static TermSet LookupTermSet(
+            TermStore tesmStore,
+            string termGroupName, Guid? groupId, bool? isSiteCollectionGroup, SPSite site,
+            string termSetName, Guid? termSetId, int termSetLCID)
+        {
+            Group currentGroup = null;
+
+            if (!string.IsNullOrEmpty(termGroupName))
+            {
+                currentGroup = tesmStore.Groups.FirstOrDefault(g => g.Name.ToUpper() == termGroupName.ToUpper());
+            }
+            else if (groupId != null && groupId.HasGuidValue())
+            {
+                currentGroup = tesmStore.GetGroup(groupId.Value);
+            }
+            else if (isSiteCollectionGroup.HasValue && isSiteCollectionGroup.Value)
+            {
+                currentGroup = tesmStore.GetSiteCollectionGroup(site);
+            }
+
+            if (termSetId.HasGuidValue())
+            {
+                if (currentGroup != null)
+                    return currentGroup.TermSets.FirstOrDefault(t => t.Id == termSetId.Value);
+
+                return tesmStore.GetTermSet(termSetId.Value);
+            }
+
+            if (!string.IsNullOrEmpty(termSetName))
+            {
+                if (currentGroup != null)
+                    return currentGroup.TermSets.FirstOrDefault(t => t.Name.ToUpper() == termSetName.ToUpper());
+
+                return tesmStore.GetTermSets(termSetName, termSetLCID).FirstOrDefault();
+            }
+
+            return null;
+        }
+
+        public static TermStore LookupTermStore(SPSite site, TaxonomyFieldDefinition taxFieldModel)
+        {
+            var taxSession = new TaxonomySession(site);
+
+            if (taxFieldModel.UseDefaultSiteCollectionTermStore == true)
+                return taxSession.DefaultSiteCollectionTermStore;
+
+            if (taxFieldModel.SspId.HasValue)
+                return taxSession.TermStores[taxFieldModel.SspId.Value];
+
+            if (!string.IsNullOrEmpty(taxFieldModel.SspName))
+                return taxSession.TermStores[taxFieldModel.SspName];
+
+            return null;
+        }
 
         #endregion
     }

@@ -1,4 +1,5 @@
-﻿using Microsoft.SharePoint;
+﻿using System;
+using Microsoft.SharePoint;
 using SPMeta2.Definitions;
 using SPMeta2.Models;
 using SPMeta2.Syntax.Default;
@@ -9,42 +10,19 @@ namespace SPMeta2.SSOM.DefaultSyntax
     {
         #region methods
 
-        #region behavior support
-
-        //public static DefinitionBase OnCreating(this DefinitionBase model, Action<ListDefinition, SPList> action)
-        //{
-        //    model.RegisterModelUpdatingEvent(action);
-
-        //    return model;
-        //}
-
-        //public static DefinitionBase OnCreated(this DefinitionBase model, Action<ListDefinition, SPList> action)
-        //{
-        //    model.RegisterModelUpdatedEvent(action);
-
-        //    return model;
-        //}
-
-        #endregion
-
-        #region add content type
-
-        public static ModelNode AddContentTypeLink(this ModelNode model, SPContentTypeId contentTypeId)
-        {
-            return ContentTypeLinkDefinitionSyntax.AddContentTypeLink(model, new ContentTypeLinkDefinition
-            {
-                ContentTypeId = contentTypeId.ToString()
-            });
-        }
-
-        #endregion
-
         #endregion
 
         #region utils
 
+        [Obsolete("Obsolete. Will be removed from the SPMeta2 API. Use ListDefinition.CustomUrl property instead.")]
         public static string GetListUrl(this ListDefinition listDefinition)
         {
+            if (!string.IsNullOrEmpty(listDefinition.CustomUrl))
+                return listDefinition.CustomUrl;
+
+            if (listDefinition.Url.ToUpper().Contains("_CATALOGS"))
+                return listDefinition.Url;
+
             // BIG BIG BIG TODO
             // correct list/doc lib mapping has to be implemented and tested
             // very critical part of the whole provision lib
@@ -55,7 +33,10 @@ namespace SPMeta2.SSOM.DefaultSyntax
             {
                 case SPListTemplateType.Events:
                 case SPListTemplateType.Tasks:
+
+#if !NET35
                 case SPListTemplateType.TasksWithTimelineAndHierarchy:
+#endif
                 case SPListTemplateType.GenericList:
                 case SPListTemplateType.AdminTasks:
                 case SPListTemplateType.Agenda:

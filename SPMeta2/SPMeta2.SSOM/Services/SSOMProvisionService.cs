@@ -12,13 +12,17 @@ using System.Reflection;
 
 namespace SPMeta2.SSOM.Services
 {
-    public class SSOMProvisionService : ModelServiceBase
+    public class SSOMProvisionService : ProvisionServiceBase
     {
         #region constructors
 
         public SSOMProvisionService()
         {
+            ServiceContainer.Instance.RegisterService(typeof(SSOMTokenReplacementService), new SSOMTokenReplacementService());
+            ServiceContainer.Instance.RegisterService(typeof(SSOMLocalizationService), new SSOMLocalizationService());
+
             RegisterModelHandlers();
+
             //CheckSharePointRuntimeVersion();
         }
 
@@ -44,20 +48,7 @@ namespace SPMeta2.SSOM.Services
 
         private void RegisterModelHandlers()
         {
-            ModelHandlers.Clear();
-
-            var handlerTypes = ReflectionUtils.GetTypesFromAssembly<SSOMModelHandlerBase>(Assembly.GetExecutingAssembly());
-
-            foreach (var handlerType in handlerTypes)
-            {
-                var handlerInstance = Activator.CreateInstance(handlerType) as SSOMModelHandlerBase;
-
-                if (handlerInstance != null)
-                {
-                    if (!ModelHandlers.ContainsKey(handlerInstance.TargetType))
-                        ModelHandlers.Add(handlerInstance.TargetType, handlerInstance);
-                }
-            }
+            RegisterModelHandlers(typeof(FieldModelHandler).Assembly);
         }
 
         public override void DeployModel(ModelHostBase modelHost, ModelNode model)
@@ -77,5 +68,28 @@ namespace SPMeta2.SSOM.Services
         }
 
         #endregion
+    }
+
+    public static class SSOMProvisionServiceExtensions
+    {
+        public static void DeployFarmModel(this SSOMProvisionService modelHost, SPFarm farm, ModelNode model)
+        {
+            modelHost.DeployModel(FarmModelHost.FromFarm(farm), model);
+        }
+
+        public static void DeployWebApplicationModel(this SSOMProvisionService modelHost, SPWebApplication webApplication, ModelNode model)
+        {
+            modelHost.DeployModel(WebApplicationModelHost.FromWebApplication(webApplication), model);
+        }
+
+        public static void DeploySiteModel(this SSOMProvisionService modelHost, SPSite site, ModelNode model)
+        {
+            modelHost.DeployModel(SiteModelHost.FromSite(site), model);
+        }
+
+        public static void DeployWebModel(this SSOMProvisionService modelHost, SPWeb web, ModelNode model)
+        {
+            modelHost.DeployModel(WebModelHost.FromWeb(web), model);
+        }
     }
 }

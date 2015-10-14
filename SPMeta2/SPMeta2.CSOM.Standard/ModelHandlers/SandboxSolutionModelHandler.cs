@@ -30,13 +30,27 @@ namespace SPMeta2.CSOM.Standard.ModelHandlers
 
         public override void DeployModel(object modelHost, DefinitionBase model)
         {
-            var siteModelHost = modelHost.WithAssertAndCast<SiteModelHost>("modelHost", value => value.RequireNotNull());
             var sandboxSolutionDefinition = model.WithAssertAndCast<SandboxSolutionDefinition>("model", value => value.RequireNotNull());
 
-            if (!sandboxSolutionDefinition.Activate)
-                throw new SPMeta2NotSupportedException("Sandbox solution provision via CSOM requires to have SandboxSolutionDefinition.Activate = true.");
+            ValidateDefinition(sandboxSolutionDefinition);
+
+            var siteModelHost = modelHost.WithAssertAndCast<SiteModelHost>("modelHost", value => value.RequireNotNull());
 
             DeploySandboxSolution(modelHost, siteModelHost, sandboxSolutionDefinition);
+        }
+
+        private void ValidateDefinition(SandboxSolutionDefinition sandboxSolutionDefinition)
+        {
+            if (!sandboxSolutionDefinition.Activate)
+                throw new SPMeta2NotSupportedException("SandboxSolutionDefinition.Activate must be true. (DesignPackage API requires it).");
+
+            if (sandboxSolutionDefinition.SolutionId == default(Guid))
+                throw new SPMeta2NotSupportedException("SandboxSolutionDefinition.SolutionId must be defined for CSOM based provision (DesignPackage API requires it).");
+
+            var fileName = Path.GetFileNameWithoutExtension(sandboxSolutionDefinition.FileName);
+
+            if (fileName.Contains("."))
+                throw new SPMeta2NotSupportedException("SandboxSolutionDefinition.FileName must not contain dots. (DesignPackage API requires it).");
         }
 
         private void DeploySandboxSolution(object modelHost, SiteModelHost siteModelHost, SandboxSolutionDefinition sandboxSolutionDefinition)
@@ -92,11 +106,9 @@ namespace SPMeta2.CSOM.Standard.ModelHandlers
                 context.ExecuteQueryWithTrace();
             }
 
-            // TODO
-            // Site Assets list has to be there are the whole DesignPackage thing requires Publishing infrastructure to be activated.
-            // list lookup should be changes later to URL based resolution
-            var solutionGallery = site.RootWeb.Lists.GetByTitle("Site Assets");
-            var folder = solutionGallery.RootFolder;
+            //var solutionGallery = site.RootWeb.Lists.GetByTitle("Site Assets");
+            //var folder = solutionGallery.RootFolder;
+            var folder = site.RootWeb.RootFolder;
 
             context.Load(folder);
             context.ExecuteQueryWithTrace();
@@ -122,7 +134,7 @@ namespace SPMeta2.CSOM.Standard.ModelHandlers
             context.Load(newFile);
             context.Load(newFile, f => f.ServerRelativeUrl);
 
-            TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "Uploading new sandbox solution to Site Assets library");
+            TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "Uploading new sandbox solution to root site folder");
             context.ExecuteQueryWithTrace();
 
             if (sandboxSolutionDefinition.Activate)
@@ -141,7 +153,7 @@ namespace SPMeta2.CSOM.Standard.ModelHandlers
                 context.ExecuteQueryWithTrace();
 
                 // clean up the file
-                TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "Deleting sandbox file from  Site Assets library");
+                TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "Deleting sandbox file from root site folder");
                 newFile.DeleteObject();
                 context.ExecuteQueryWithTrace();
             }

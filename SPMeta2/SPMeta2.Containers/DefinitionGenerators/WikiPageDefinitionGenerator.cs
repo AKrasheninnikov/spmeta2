@@ -3,6 +3,8 @@ using SPMeta2.Containers.Services.Base;
 using SPMeta2.Definitions;
 using SPMeta2.Definitions.Base;
 using SPMeta2.Enumerations;
+using SPMeta2.Models;
+using SPMeta2.Syntax.Default;
 
 namespace SPMeta2.Containers.DefinitionGenerators
 {
@@ -15,17 +17,24 @@ namespace SPMeta2.Containers.DefinitionGenerators
                 def.Title = Rnd.String();
                 def.FileName = Rnd.String() + ".aspx";
                 def.NeedOverride = true;
+
+                def.Content = Rnd.String();
             });
         }
 
-        public override DefinitionBase GetCustomParenHost()
+        public override ModelNode GetCustomParenHost()
         {
             var listDefinitionGenerator = new ListDefinitionGenerator();
             var listDefinition = listDefinitionGenerator.GenerateRandomDefinition() as ListDefinition;
 
             listDefinition.TemplateType = BuiltInListTemplateTypeId.WebPageLibrary;
 
-            return listDefinition;
+            var node = new ListModelNode
+            {
+                Value = listDefinition,
+            };
+
+            return node;
         }
     }
 }

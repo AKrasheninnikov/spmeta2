@@ -8,6 +8,7 @@ using SPMeta2.CSOM.ModelHandlers;
 using SPMeta2.CSOM.ModelHosts;
 using SPMeta2.Definitions;
 using SPMeta2.Definitions.Base;
+using SPMeta2.Enumerations;
 using SPMeta2.ModelHosts;
 using SPMeta2.Standard.Definitions;
 using SPMeta2.Standard.Enumerations;
@@ -28,32 +29,54 @@ namespace SPMeta2.CSOM.Standard.ModelHandlers
 
         #region methods
 
-        public override void WithResolvingModelHost(object modelHost, DefinitionBase model, Type childModelType, Action<object> action)
+        public override void WithResolvingModelHost(ModelHostResolveContext modelHostContext)
         {
+            var modelHost = modelHostContext.ModelHost;
+            var model = modelHostContext.Model;
+            var childModelType = modelHostContext.ChildModelType;
+            var action = modelHostContext.Action;
+
             var folderModelHost = modelHost as FolderModelHost;
             var pageDefinition = model as PublishingPageDefinition;
 
-            Folder folder = folderModelHost.CurrentLibraryFolder;
+            Folder folder = folderModelHost.CurrentListFolder;
 
             if (folder != null && pageDefinition != null)
             {
                 var context = folder.Context;
                 var currentPage = GetCurrentPage(folderModelHost.CurrentList, folder, GetSafePageFileName(pageDefinition));
 
-                var currentListItem = currentPage.ListItemAllFields;
-                context.Load(currentListItem);
-                context.ExecuteQueryWithTrace();
-
-                if (typeof(WebPartDefinitionBase).IsAssignableFrom(childModelType))
+                if (typeof(WebPartDefinitionBase).IsAssignableFrom(childModelType)
+                    || childModelType == typeof(DeleteWebPartsDefinition))
                 {
                     var listItemHost = ModelHostBase.Inherit<ListItemModelHost>(folderModelHost, itemHost =>
                     {
-                        itemHost.HostListItem = currentListItem;
+                        itemHost.HostFile = currentPage;
+                        itemHost.HostList = folderModelHost.CurrentList;
                     });
 
                     action(listItemHost);
 
                     //currentListItem.Update();
+                }
+                else if (typeof(BreakRoleInheritanceDefinition).IsAssignableFrom(childModelType)
+                        || typeof(SecurityGroupLinkDefinition).IsAssignableFrom(childModelType))
+                {
+                    var currentListItem = currentPage.ListItemAllFields;
+                    context.Load(currentListItem);
+                    context.ExecuteQueryWithTrace();
+
+                    var listItemHost = ModelHostBase.Inherit<ListItemModelHost>(folderModelHost, itemHost =>
+                    {
+
+                        itemHost.HostListItem = currentListItem;
+                    });
+
+                    action(listItemHost);
+                }
+                else
+                {
+                    action(currentPage);
                 }
 
                 //context.ExecuteQueryWithTrace();
@@ -134,12 +157,37 @@ namespace SPMeta2.CSOM.Standard.ModelHandlers
         {
             var folderModelHost = modelHost.WithAssertAndCast<FolderModelHost>("modelHost", value => value.RequireNotNull());
 
-            var folder = folderModelHost.CurrentLibraryFolder;
+            var folder = folderModelHost.CurrentListFolder;
             var list = folderModelHost.CurrentList;
 
             var publishingPageModel = model.WithAssertAndCast<PublishingPageDefinition>("model", value => value.RequireNotNull());
 
             var context = folder.Context;
+
+            var stringCustomContentType = string.Empty;
+            // preload custm content type
+            if (!string.IsNullOrEmpty(publishingPageModel.ContentTypeName))
+            {
+                var listContentTypes = list.ContentTypes;
+                context.Load(listContentTypes);
+                context.ExecuteQueryWithTrace();
+
+                var listContentType = listContentTypes.ToList()
+                                                      .FirstOrDefault(c => c.Name.ToUpper() == publishingPageModel.ContentTypeName.ToUpper());
+
+                if (listContentType == null)
+                {
+                    throw new ArgumentNullException(
+                        string.Format("Cannot find content type with Name:[{0}] in List:[{1}]",
+                            new string[]
+                                    {
+                                        publishingPageModel.ContentTypeName,
+                                        list.Title
+                                    }));
+                }
+
+                stringCustomContentType = listContentType.Id.ToString();
+            }
 
             var pageName = GetSafePageFileName(publishingPageModel);
             var currentPageFile = GetCurrentPage(list, folder, pageName);
@@ -185,11 +233,30 @@ namespace SPMeta2.CSOM.Standard.ModelHandlers
 
                 currentPageLayoutItemContext.ExecuteQueryWithTrace();
 
-                newFileItem["Title"] = publishingPageModel.Title;
-                newFileItem["Comments"] = publishingPageModel.Description;
+                // settig up dfault values if there is PublishingPageLayout setup
+                EnsureDefaultValues(newFileItem, publishingPageModel);
 
-                newFileItem["PublishingPageLayout"] = publishingFile.ServerRelativeUrl + ", " + currentPageLayoutItem.DisplayName;
-                newFileItem["ContentTypeId"] = currentPageLayoutItem["PublishingAssociatedContentType"];
+                if (!string.IsNullOrEmpty(publishingPageModel.Title))
+                    newFileItem[BuiltInInternalFieldNames.Title] = publishingPageModel.Title;
+
+                if (!string.IsNullOrEmpty(publishingPageModel.Description))
+                    newFileItem[BuiltInInternalFieldNames.Comments] = publishingPageModel.Description;
+
+                newFileItem[BuiltInInternalFieldNames.PublishingPageLayout] = publishingFile.ServerRelativeUrl + ", " + currentPageLayoutItem.DisplayName;
+
+                var contentTypeStringValue = ConvertUtils.ToString(currentPageLayoutItem[BuiltInInternalFieldNames.PublishingAssociatedContentType]);
+
+                if (!string.IsNullOrEmpty(contentTypeStringValue))
+                {
+                    var contentTypeValues = contentTypeStringValue.Split(new string[] { ";#" }, StringSplitOptions.None);
+                    var contentTypeName = contentTypeValues[1];
+                    var contentTypeId = contentTypeValues[2];
+
+                    newFileItem[BuiltInInternalFieldNames.ContentTypeId] = contentTypeId;
+                }
+
+                if (!string.IsNullOrEmpty(stringCustomContentType))
+                    newFileItem[BuiltInInternalFieldNames.ContentTypeId] = stringCustomContentType;
 
                 newFileItem.Update();
 
@@ -212,6 +279,24 @@ namespace SPMeta2.CSOM.Standard.ModelHandlers
             context.ExecuteQueryWithTrace();
         }
 
+        private static void EnsureDefaultValues(ListItem newFileItem, PublishingPageDefinition publishingPageModel)
+        {
+            foreach (var defaultValue in publishingPageModel.DefaultValues)
+            {
+                if (!string.IsNullOrEmpty(defaultValue.FieldName))
+                {
+                    if (newFileItem.FieldValues.ContainsKey(defaultValue.FieldName))
+                    {
+                        if (newFileItem[defaultValue.FieldName] == null)
+                            newFileItem[defaultValue.FieldName] = defaultValue.Value;
+                    }
+                }
+                else if (defaultValue.FieldId.HasValue && defaultValue.FieldId != default(Guid))
+                {
+                    // unsupported by CSOM API yet
+                }
+            }
+        }
 
 
         //if (item != null)

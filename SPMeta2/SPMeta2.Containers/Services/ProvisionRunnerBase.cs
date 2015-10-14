@@ -18,6 +18,8 @@ namespace SPMeta2.Containers.Services
         #region properties
 
         public string Name { get; set; }
+
+        public bool EnableDefinitionProvision { get; set; }
         public bool EnableDefinitionValidation { get; set; }
 
         public int ProvisionGenerationCount { get; set; }
@@ -38,22 +40,27 @@ namespace SPMeta2.Containers.Services
 
         public virtual void DeployFarmModel(ModelNode model)
         {
-
+            throw new NotImplementedException();
         }
 
         public virtual void DeployWebApplicationModel(ModelNode model)
         {
-
+            throw new NotImplementedException();
         }
 
         public virtual void DeploySiteModel(ModelNode model)
         {
-
+            throw new NotImplementedException();
         }
 
         public virtual void DeployWebModel(ModelNode model)
         {
+            throw new NotImplementedException();
+        }
 
+        public virtual void DeployListModel(ModelNode model)
+        {
+            throw new NotImplementedException();
         }
 
         #endregion
@@ -67,5 +74,7 @@ namespace SPMeta2.Containers.Services
         {
 
         }
+
+        
     }
 }

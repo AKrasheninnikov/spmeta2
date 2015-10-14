@@ -1,18 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.SharePoint.Client;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SPMeta2.CSOM.ModelHandlers;
 using SPMeta2.CSOM.ModelHosts;
 using SPMeta2.Definitions;
-using SPMeta2.Definitions.Base;
-using SPMeta2.Regression.Utils;
 using SPMeta2.Utils;
 using FeatureDefinitionScope = SPMeta2.Definitions.FeatureDefinitionScope;
 using SPMeta2.Exceptions;
+using SPMeta2.Containers.Assertion;
+using SPMeta2.CSOM.Extensions;
 
 namespace SPMeta2.Regression.CSOM.Validation
 {
@@ -36,11 +31,11 @@ namespace SPMeta2.Regression.CSOM.Validation
             {
                 case FeatureDefinitionScope.Farm:
                     throw new SPMeta2NotImplementedException("Farm features are not supported in CSOM.");
-                
+
                 case FeatureDefinitionScope.WebApplication:
 
                     throw new SPMeta2NotImplementedException("WebApplication features are not supported in CSOM.");
-            
+
                 case FeatureDefinitionScope.Site:
 
                     assert.SkipProperty(m => m.Scope, "Correct site scope");
@@ -50,7 +45,7 @@ namespace SPMeta2.Regression.CSOM.Validation
 
                     var siteContext = siteModelHost.HostSite.Context;
                     siteContext.Load(features);
-                    siteContext.ExecuteQuery();
+                    siteContext.ExecuteQueryWithTrace();
 
 
                     break;
@@ -64,7 +59,7 @@ namespace SPMeta2.Regression.CSOM.Validation
 
                     var webContext = webModelHost.HostWeb.Context;
                     webContext.Load(features);
-                    webContext.ExecuteQuery();
+                    webContext.ExecuteQueryWithTrace();
 
                     break;
             }
@@ -73,38 +68,66 @@ namespace SPMeta2.Regression.CSOM.Validation
 
             spObject = features.GetById(featureId);
             features.Context.Load(spObject, o => o.DefinitionId);
-            features.Context.ExecuteQuery();
-        
+            features.Context.ExecuteQueryWithTrace();
+
             assert.Dst = spObject;
 
-            assert
-                .ShouldBeEqual(m => m.Id, o => o.DefinitionId);
-
-            if (definition.ForceActivate)
+            if (definition.Enable == false)
             {
+                // check is null, skill all props
+
+                assert.ShouldBeEqual((p, s, d) =>
+                {
+                    var srcProp = s.GetExpressionValue(m => m.Enable);
+
+                    var isValid = d.ServerObjectIsNull == true;
+
+                    return new PropertyValidationResult
+                    {
+                        Tag = p.Tag,
+                        Src = srcProp,
+                        Dst = null,
+                        IsValid = isValid
+                    };
+                });
+
                 assert
-                    .SkipProperty(m => m.Enable, "ForceActivate = true. Expect not null feature instance.")
-                    .ShouldNotBeNull(spObject);
+                    .SkipProperty(m => m.Id, "Enable = false. Skipping.")
+                    .SkipProperty(m => m.ForceActivate, "Enable = false. Skipping.")
+                    .SkipProperty(m => m.Enable, "Enable = false. Skipping.")
+                    .SkipProperty(m => m.Title, "Enable = false. Skipping.");
             }
             else
             {
-                assert
-                  .SkipProperty(m => m.ForceActivate, "ForceActivate = false. Skipping.");
-            }
+                assert.ShouldBeEqual(m => m.Id, o => o.DefinitionId);
+
+                if (definition.ForceActivate)
+                {
+                    assert
+                        .SkipProperty(m => m.ForceActivate, "ForceActivate = true. Expect not null feature instance.")
+                        .ShouldNotBeNull(spObject);
+                }
+                else
+                {
+                    assert
+                        .SkipProperty(m => m.ForceActivate, "ForceActivate = false. Skipping.");
+                }
 
 
-            if (definition.Enable)
-            {
-                assert
-                    .SkipProperty(m => m.Enable, "Enable = true. Expect not null feature instance.")
-                    .ShouldNotBeNull(spObject);
+                if (definition.Enable)
+                {
+                    assert
+                        .SkipProperty(m => m.Enable, "Enable = true. Expect not null feature instance.")
+                        .ShouldNotBeNull(spObject);
+                }
+                else
+                {
+                    assert
+                        .SkipProperty(m => m.Enable, "Enable = false. Expect null feature instance.")
+                        .ShouldBeNull(spObject);
+                }
             }
-            else
-            {
-                assert
-                  .SkipProperty(m => m.Enable, "Enable = false. Expect null feature instance.")
-                  .ShouldBeNull(spObject);
-            }
+
         }
 
 

@@ -1,4 +1,5 @@
 ﻿using SPMeta2.Attributes;
+using SPMeta2.Attributes.Identity;
 using SPMeta2.Attributes.Regression;
 using System;
 using System.Collections.Generic;
@@ -6,14 +7,22 @@ using System.Linq;
 using System.Text;
 using SPMeta2.Definitions.Base;
 using SPMeta2.Utils;
+using System.Runtime.Serialization;
+using SPMeta2.Attributes.Capabilities;
 
 namespace SPMeta2.Definitions
 {
+    [DataContract]
+    [Serializable]
     public enum FeatureDefinitionScope
     {
+        [EnumMember]
         Farm,
+        [EnumMember]
         WebApplication,
+        [EnumMember]
         Site,
+        [EnumMember]
         Web
     }
 
@@ -29,7 +38,15 @@ namespace SPMeta2.Definitions
     [DefaultParentHostAttribute(typeof(WebDefinition))]
 
     [Serializable]
+    [DataContract]
+    [ExpectWithExtensionMethod]
+    [ExpectArrayExtensionMethod]
 
+
+    [ParentHostCapability(typeof(SiteDefinition))]
+    [ParentHostCapability(typeof(WebDefinition))]
+
+    [ExpectManyInstances]
     public class FeatureDefinition : DefinitionBase
     {
         #region properties
@@ -38,6 +55,8 @@ namespace SPMeta2.Definitions
         /// Title of the target feature.
         /// Is not used for any provision routines, can be omitted.
         /// </summary>
+        /// 
+        [DataMember]
         public string Title { get; set; }
 
         /// <summary>
@@ -46,6 +65,9 @@ namespace SPMeta2.Definitions
         /// 
 
         [ExpectValidation]
+        [ExpectRequired]
+        [DataMember]
+        [IdentityKey]
         public Guid Id { get; set; }
 
         /// <summary>
@@ -54,6 +76,7 @@ namespace SPMeta2.Definitions
         /// 
 
         [ExpectValidation]
+        [DataMember]
         public bool ForceActivate { get; set; }
 
         /// <summary>
@@ -63,6 +86,7 @@ namespace SPMeta2.Definitions
         /// 
 
         [ExpectValidation]
+        [DataMember]
         public bool Enable { get; set; }
 
         /// <summary>
@@ -71,6 +95,7 @@ namespace SPMeta2.Definitions
         /// 
 
         [ExpectValidation]
+        [DataMember]
         public FeatureDefinitionScope Scope { get; set; }
 
         #endregion

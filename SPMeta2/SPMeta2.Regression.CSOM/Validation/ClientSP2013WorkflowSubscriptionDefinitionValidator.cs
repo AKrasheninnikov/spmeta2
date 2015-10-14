@@ -2,14 +2,16 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
+using Microsoft.SharePoint.Client.WorkflowServices;
+using SPMeta2.Containers.Assertion;
 using SPMeta2.CSOM.ModelHandlers;
 using SPMeta2.CSOM.ModelHosts;
 using SPMeta2.Definitions;
 using SPMeta2.Definitions.Base;
 using SPMeta2.Utils;
 using Microsoft.SharePoint.Client;
-using SPMeta2.Regression.Assertion;
+using SPMeta2.CSOM.Extensions;
 
 namespace SPMeta2.Regression.CSOM.Validation
 {
@@ -17,35 +19,70 @@ namespace SPMeta2.Regression.CSOM.Validation
     {
         public override void DeployModel(object modelHost, DefinitionBase model)
         {
-            var workflowSubscriptionModelHost = modelHost.WithAssertAndCast<SP2013WorkflowSubscriptionModelHost>("modelHost", value => value.RequireNotNull());
-            var definition = model.WithAssertAndCast<SP2013WorkflowSubscriptionDefinition>("model", value => value.RequireNotNull());
+            if (modelHost is WebModelHost)
+            {
+                var workflowWebSubscriptionModelHost = modelHost.WithAssertAndCast<WebModelHost>("modelHost", value => value.RequireNotNull());
+                var definition = model.WithAssertAndCast<SP2013WorkflowSubscriptionDefinition>("model", value => value.RequireNotNull());
 
-            var list = workflowSubscriptionModelHost.HostList;
+                var web = workflowWebSubscriptionModelHost.HostWeb;
 
-            var web = workflowSubscriptionModelHost.HostWeb;
+                var spObject = GetCurrentWebWorkflowSubscriptioBySourceId(workflowWebSubscriptionModelHost,
+                       workflowWebSubscriptionModelHost.HostClientContext,
+                       web,
+                       web.Id,
+                       definition);
+
+                ValidateWorkflowSubscription(modelHost, workflowWebSubscriptionModelHost.HostClientContext, workflowWebSubscriptionModelHost.HostWeb, spObject, definition);
+            }
+
+            if (modelHost is ListModelHost)
+            {
+                var workflowSubscriptionModelHost = modelHost.WithAssertAndCast<ListModelHost>("modelHost", value => value.RequireNotNull());
+                var definition = model.WithAssertAndCast<SP2013WorkflowSubscriptionDefinition>("model", value => value.RequireNotNull());
+
+                var web = workflowSubscriptionModelHost.HostWeb;
+                var list = workflowSubscriptionModelHost.HostList;
+
+                var spObject = GetCurrentWebWorkflowSubscriptioBySourceId(workflowSubscriptionModelHost,
+                      workflowSubscriptionModelHost.HostClientContext,
+                      list.ParentWeb,
+                      list.Id,
+                      definition);
+
+                ValidateWorkflowSubscription(modelHost, workflowSubscriptionModelHost.HostClientContext, web, spObject, definition);
+            }
+        }
+
+        private void ValidateWorkflowSubscription(object modelHost,
+            ClientContext clientContext,
+            Web web,
+            WorkflowSubscription spObject,
+            SP2013WorkflowSubscriptionDefinition definition)
+        {
+
+            var spObjectContext = spObject.Context;
+
+            //spObjectContext.Load(spObject);
+            //spObjectContext.Load(spObject, o => o.PropertyDefinitions);
+            //spObjectContext.Load(spObject, o => o.EventSourceId);
+            //spObjectContext.Load(spObject, o => o.EventTypes);
+
+            //spObjectContext.ExecuteQueryWithTrace();
+
+            #region list accos
+
             var webContext = web.Context;
 
-            var spObject = GetCurrentWorkflowSubscription(workflowSubscriptionModelHost,
-                    workflowSubscriptionModelHost.HostClientContext,
-                    workflowSubscriptionModelHost.HostList, definition);
-
             var assert = ServiceFactory.AssertService
-                          .NewAssert(definition, spObject)
-                                .ShouldNotBeNull(spObject)
-                                .ShouldBeEqual(m => m.Name, o => o.Name);
+                .NewAssert(definition, spObject)
+                .ShouldNotBeNull(spObject)
+                .ShouldBeEqual(m => m.Name, o => o.Name);
 
             // [FALSE] - [WorkflowDisplayName] <!- check DefinitionId, load workflow
             //        [FALSE] - [HistoryListUrl] 
             //        [FALSE] - [TaskListUrl]
             //        [FALSE] - [EventSourceId]
             //        [FALSE] - [EventTypes]
-
-            var spObjectContext = spObject.Context;
-
-            spObjectContext.Load(spObject, o => o.PropertyDefinitions);
-            spObjectContext.Load(spObject, o => o.EventSourceId);
-
-            spObjectContext.ExecuteQuery();
 
             #region event types
 
@@ -71,8 +108,9 @@ namespace SPMeta2.Regression.CSOM.Validation
 
             #region validate DefinitionId
 
-            var workflowDefinition = GetWorkflowDefinition(workflowSubscriptionModelHost, 
-                workflowSubscriptionModelHost.HostClientContext,
+            var workflowDefinition = GetWorkflowDefinition(modelHost,
+                clientContext,
+                web,
                 definition);
 
             assert.ShouldBeEqual((p, s, d) =>
@@ -95,7 +133,7 @@ namespace SPMeta2.Regression.CSOM.Validation
             var historyListId = new Guid(spObject.PropertyDefinitions["HistoryListId"]);
 
             var lists = webContext.LoadQuery<List>(web.Lists.Include(l => l.DefaultViewUrl, l => l.Id));
-            webContext.ExecuteQuery();
+            webContext.ExecuteQueryWithTrace();
 
             var srcTaskList = lists.FirstOrDefault(l => l.Id == taskListId);
             var srcHistoryList = lists.FirstOrDefault(l => l.Id == historyListId);
@@ -129,6 +167,7 @@ namespace SPMeta2.Regression.CSOM.Validation
 
             #endregion
 
+            #endregion
         }
     }
 }

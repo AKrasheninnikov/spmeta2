@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
 using Microsoft.SharePoint;
 using Microsoft.SharePoint.Administration;
 using SPMeta2.Common;
@@ -28,8 +28,14 @@ namespace SPMeta2.SSOM.ModelHandlers
 
         #region methods
 
-        public override void WithResolvingModelHost(object modelHost, DefinitionBase model, Type childModelType, Action<object> action)
+        public override void WithResolvingModelHost(ModelHostResolveContext modelHostContext)
         {
+            var modelHost = modelHostContext.ModelHost;
+            var model = modelHostContext.Model;
+            var childModelType = modelHostContext.ChildModelType;
+            var action = modelHostContext.Action;
+
+
             var folderModelHost = modelHost.WithAssertAndCast<FolderModelHost>("modelHost", value => value.RequireNotNull());
             var folderModel = model.WithAssertAndCast<FolderDefinition>("model", value => value.RequireNotNull());
 
@@ -44,6 +50,8 @@ namespace SPMeta2.SSOM.ModelHandlers
                 };
 
                 action(newContext);
+
+                currentFolder.Update();
             }
             else if (folderModelHost.CurrentList != null)
             {
@@ -56,6 +64,9 @@ namespace SPMeta2.SSOM.ModelHandlers
                 };
 
                 action(newContext);
+
+                if (newContext.ShouldUpdateHost)
+                    currentListItem.Update();
             }
         }
 

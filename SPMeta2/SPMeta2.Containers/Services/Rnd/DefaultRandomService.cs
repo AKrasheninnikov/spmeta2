@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Text;
+using SPMeta2.Containers.Consts;
+using SPMeta2.Containers.Utils;
 
 namespace SPMeta2.Containers.Services.Rnd
 {
     public class DefaultRandomService : RandomService
     {
+        double _defaultTrueProbability = 0.49;
         private Random _rnd = new Random();
 
         public override Guid Guid()
@@ -53,14 +56,21 @@ namespace SPMeta2.Containers.Services.Rnd
 
         public override bool Bool()
         {
-            _boolFlag = !_boolFlag;
 
-            return _boolFlag;
+            return _rnd.NextDouble() < _defaultTrueProbability;
         }
 
         public override string UserLogin()
         {
-            return string.Format("{0}/{1}", Environment.UserDomainName, Environment.UserName);
+            var userLogins = RunnerEnvironmentUtils.GetEnvironmentVariable(EnvironmentConsts.DefaultTestUserLogins);
+
+            if (!string.IsNullOrEmpty(userLogins))
+            {
+                var logins = userLogins.Split(new string[] { "," }, StringSplitOptions.RemoveEmptyEntries);
+                return logins[Int(logins.Length)];
+            }
+
+            throw new Exception(string.Format("Environment value [{0}] is NULL", EnvironmentConsts.DefaultTestUserLogins));
         }
 
         public override string UserEmail()
@@ -90,7 +100,20 @@ namespace SPMeta2.Containers.Services.Rnd
 
         public override string DbServerName()
         {
-            return string.Format("{0}", Environment.MachineName);
+            return string.Format("{0}", RunnerEnvironmentUtils.GetEnvironmentVariable(EnvironmentConsts.DefaultSqlServerName));
+        }
+
+        public override string ActiveDirectoryGroup()
+        {
+            var groups = RunnerEnvironmentUtils.GetEnvironmentVariable(EnvironmentConsts.DefaultTestADGroups);
+
+            if (!string.IsNullOrEmpty(groups))
+            {
+                var groupValues = groups.Split(new string[] { "," }, StringSplitOptions.RemoveEmptyEntries);
+                return groupValues[Int(groupValues.Length)];
+            }
+
+            throw new Exception(string.Format("Environment value [{0}] is NULL", EnvironmentConsts.DefaultTestADGroups));
         }
     }
 }

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
 using Microsoft.SharePoint;
 using SPMeta2.Common;
 using SPMeta2.Definitions;
@@ -82,7 +82,8 @@ namespace SPMeta2.SSOM.ModelHandlers
 
         private void DeployWebApplicationFeature(object modelHost, FeatureDefinition featureModel)
         {
-            var webApplication = modelHost.WithAssertAndCast<SPWebApplication>("modelHost", value => value.RequireNotNull());
+            var webApplicationModelHost = modelHost.WithAssertAndCast<WebApplicationModelHost>("modelHost", value => value.RequireNotNull());
+            var webApplication = webApplicationModelHost.HostWebApplication;
 
             TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "Deploying web application feature.");
 
@@ -93,18 +94,19 @@ namespace SPMeta2.SSOM.ModelHandlers
         {
             TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "Deploying farm feature.");
 
-            throw new SPMeta2NotImplementedException("SPFarm feature activation has not implemented yet");
+            var farmModelHost = modelHost.WithAssertAndCast<FarmModelHost>("modelHost", value => value.RequireNotNull());
+            var farm = farmModelHost.HostFarm;
 
-            //var farm = modelHost.WithAssertAndCast<SPFarm>("modelHost", value => value.RequireNotNull());
-            //ProcessFeature(farm.FeatureDefinitions, featureModel);
+            var adminService = SPWebService.AdministrationService;
+            ProcessFeature(modelHost, adminService.Features, featureModel);
         }
 
         #region utils
 
         private static bool IsValidHost(object modelHost)
         {
-            return modelHost is SPFarm ||
-                   modelHost is SPWebApplication ||
+            return modelHost is SPFarm || modelHost is FarmModelHost ||
+                   modelHost is SPWebApplication || modelHost is WebApplicationModelHost ||
                    modelHost is SiteModelHost ||
                    modelHost is WebModelHost;
         }
@@ -144,7 +146,7 @@ namespace SPMeta2.SSOM.ModelHandlers
                 if (featureModel.Enable)
                 {
                     TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "Enabling feature");
-                    var f = features.Add(featureModel.Id, featureModel.ForceActivate);
+                    var f = SafelyActivateFeature(features, featureModel);
 
                     InvokeOnModelEvent(this, new ModelEventArgs
                     {
@@ -177,7 +179,7 @@ namespace SPMeta2.SSOM.ModelHandlers
                 {
                     TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "Feature enabled, but ForceActivate = true. Force activating.");
 
-                    var f = features.Add(featureModel.Id, featureModel.ForceActivate);
+                    var f = SafelyActivateFeature(features, featureModel);
 
                     InvokeOnModelEvent(this, new ModelEventArgs
                     {
@@ -193,7 +195,7 @@ namespace SPMeta2.SSOM.ModelHandlers
                 else if (!featureModel.Enable)
                 {
                     TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "Removing feature.");
-                   
+
                     features.Remove(featureModel.Id, featureModel.ForceActivate);
 
                     InvokeOnModelEvent(this, new ModelEventArgs
@@ -221,6 +223,32 @@ namespace SPMeta2.SSOM.ModelHandlers
                     });
                 }
             }
+        }
+
+        private static SPFeature SafelyActivateFeature(SPFeatureCollection features, FeatureDefinition featureModel)
+        {
+            SPFeature result = null;
+
+            try
+            {
+                result = features.Add(featureModel.Id, featureModel.ForceActivate);
+            }
+            catch (Exception e)
+            {
+                // sandbox site/web features?
+                // they need to ne activated with SPFeatureDefinitionScope.Site scope
+                if ((featureModel.Scope == FeatureDefinitionScope.Site || featureModel.Scope == FeatureDefinitionScope.Web)
+                    && e.Message.ToUpper().Contains(featureModel.Id.ToString("D").ToUpper()))
+                {
+                    result = features.Add(featureModel.Id, featureModel.ForceActivate, SPFeatureDefinitionScope.Site);
+                }
+                else
+                {
+                    throw e;
+                }
+            }
+
+            return result;
         }
 
         #endregion

@@ -1,4 +1,5 @@
 ﻿using SPMeta2.Attributes;
+using SPMeta2.Attributes.Identity;
 using SPMeta2.Attributes.Regression;
 using System;
 using System.Collections.Generic;
@@ -8,6 +9,8 @@ using System.Text;
 using SPMeta2.Definitions.Base;
 using SPMeta2.Enumerations;
 using SPMeta2.Utils;
+using System.Runtime.Serialization;
+using SPMeta2.Attributes.Capabilities;
 
 namespace SPMeta2.Definitions
 {
@@ -22,6 +25,15 @@ namespace SPMeta2.Definitions
     [DefaultParentHostAttribute(typeof(SiteDefinition))]
 
     [Serializable]
+    [DataContract]
+    [ExpectWithExtensionMethod]
+    [ExpectArrayExtensionMethod]
+
+    [ParentHostCapability(typeof(SiteDefinition))]
+    [ParentHostCapability(typeof(WebDefinition))]
+    [ParentHostCapability(typeof(ListDefinition))]
+
+    [ExpectManyInstances]
 
     public class UserCustomActionDefinition : DefinitionBase
     {
@@ -31,6 +43,10 @@ namespace SPMeta2.Definitions
         {
             Rights = new Collection<string>();
             RegistrationType = BuiltInRegistrationTypes.None;
+
+            TitleResource = new List<ValueForUICulture>();
+            DescriptionResource = new List<ValueForUICulture>();
+            CommandUIExtensionResource = new List<ValueForUICulture>();
         }
 
         #endregion
@@ -42,6 +58,9 @@ namespace SPMeta2.Definitions
         /// </summary>
         /// 
         [ExpectValidation]
+        [ExpectRequired]
+        [DataMember]
+        [IdentityKey]
         public string Name { get; set; }
 
         /// <summary>
@@ -49,20 +68,43 @@ namespace SPMeta2.Definitions
         /// </summary>
         /// 
         [ExpectValidation]
+        [DataMember]
+        [ExpectNullable]
         public string Title { get; set; }
+
+
+        /// <summary>
+        /// Corresponds to TitleResource property
+        /// </summary>
+        [ExpectValidation]
+        [ExpectUpdate]
+        [DataMember]
+        public List<ValueForUICulture> TitleResource { get; set; }
 
         /// <summary>
         /// Description of the target user custom action.
         /// </summary>
         /// 
         [ExpectValidation]
+        [DataMember]
+        [ExpectNullable]
         public string Description { get; set; }
+
+
+        /// <summary>
+        /// Corresponds to DescriptionResource property
+        /// </summary>
+        [ExpectValidation]
+        [ExpectUpdate]
+        [DataMember]
+        public List<ValueForUICulture> DescriptionResource { get; set; }
 
         /// <summary>
         /// Group of the target user custom action.
         /// </summary>
         /// 
         [ExpectValidation]
+        [DataMember]
         public string Group { get; set; }
 
         /// <summary>
@@ -70,6 +112,7 @@ namespace SPMeta2.Definitions
         /// </summary>
         /// 
         [ExpectValidation]
+        [DataMember]
         public string Location { get; set; }
 
         /// <summary>
@@ -77,6 +120,7 @@ namespace SPMeta2.Definitions
         /// </summary>
         /// 
         [ExpectValidation]
+        [DataMember]
         public string ScriptSrc { get; set; }
 
         /// <summary>
@@ -84,6 +128,7 @@ namespace SPMeta2.Definitions
         /// </summary>
         /// 
         [ExpectValidation]
+        [DataMember]
         public string ScriptBlock { get; set; }
 
         /// <summary>
@@ -91,6 +136,7 @@ namespace SPMeta2.Definitions
         /// </summary>
         /// 
         [ExpectValidation]
+        [DataMember]
         public int Sequence { get; set; }
 
         /// <summary>
@@ -98,6 +144,7 @@ namespace SPMeta2.Definitions
         /// </summary>
         /// 
         [ExpectValidation]
+        [DataMember]
         public string Url { get; set; }
 
         /// <summary>
@@ -105,6 +152,7 @@ namespace SPMeta2.Definitions
         /// </summary>
         /// 
         [ExpectValidation]
+        [DataMember]
         public Collection<string> Rights { get; set; }
 
         /// <summary>
@@ -112,6 +160,7 @@ namespace SPMeta2.Definitions
         /// </summary>
         /// 
         [ExpectValidation]
+        [DataMember]
         public string RegistrationId { get; set; }
 
         /// <summary>
@@ -121,7 +170,23 @@ namespace SPMeta2.Definitions
         /// </summary>
         /// 
         [ExpectValidation]
+        [DataMember]
         public string RegistrationType { get; set; }
+
+        /// <summary>
+        /// Gets and sets XML that defines an extension to the ribbon.
+        /// </summary>
+        [ExpectValidation]
+        [DataMember]
+        public string CommandUIExtension { get; set; }
+
+        /// <summary>
+        /// Corresponds to CommandUIExtensionResource property
+        /// </summary>
+        [ExpectValidation]
+        [ExpectUpdate]
+        [DataMember]
+        public List<ValueForUICulture> CommandUIExtensionResource { get; set; }
 
         #endregion
 

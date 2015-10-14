@@ -49,7 +49,7 @@ namespace SPMeta2.CSOM.ModelHandlers
             var web = ExtractWeb(securityGroupModelHost.SecurableObject);
 
             var context = group.Context;
-            var existingRoleAssignments = web.RoleAssignments;
+            var existingRoleAssignments = securableObject.RoleAssignments;
 
             context.Load(existingRoleAssignments, r => r.Include(d => d.Member, d => d.RoleDefinitionBindings));
             context.ExecuteQueryWithTrace();
@@ -125,6 +125,14 @@ namespace SPMeta2.CSOM.ModelHandlers
 
                 if (ensureDefinition)
                 {
+                    // pre-remove Edit if it is the only one - this is default role def in order to create binding
+
+                    if (existingRoleAssignment.RoleDefinitionBindings.Count == 1
+                        && existingRoleAssignment.RoleDefinitionBindings[0].RoleTypeKind == RoleType.Reader)
+                    {
+                        existingRoleAssignment.RoleDefinitionBindings.RemoveAll();
+                    }
+
                     existingRoleAssignment.RoleDefinitionBindings.Add(currentRoleDefinition);
 
                     InvokeOnModelEvent(this, new ModelEventArgs

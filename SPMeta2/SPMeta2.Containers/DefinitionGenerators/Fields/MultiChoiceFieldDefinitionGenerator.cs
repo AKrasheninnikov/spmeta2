@@ -15,17 +15,15 @@ namespace SPMeta2.Containers.DefinitionGenerators.Fields
 
         protected override FieldDefinition GetFieldDefinitionTemplate()
         {
-            var def = new ChoiceFieldDefinition();
+            var def = new MultiChoiceFieldDefinition();
 
             var choiceCount = Rnd.Int(10) + 1;
 
             for (var index = 0; index < choiceCount; index++)
             {
                 def.Choices.Add(Rnd.String(8));
+                def.Mappings.Add(Rnd.String(8));
             }
-
-            def.ValidationMessage = string.Format("validatin_msg_{0}", Rnd.String());
-            def.ValidationFormula = string.Format("=[ID] * {0}", Rnd.Int(100));
 
             return def;
         }

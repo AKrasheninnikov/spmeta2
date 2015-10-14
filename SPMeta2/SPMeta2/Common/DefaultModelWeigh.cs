@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using SPMeta2.Definitions.ContentTypes;
+using SPMeta2.Definitions.Fields;
 
 namespace SPMeta2.Common
 {
@@ -21,7 +23,22 @@ namespace SPMeta2.Common
             InitSiteScope();
             InitWebScope();
             InitListScope();
+
+            InitListItemScope();
+            InitModuleFileScope();
+
             InitFolderScope();
+        }
+
+        private static void InitModuleFileScope()
+        {
+            Weighs.Add(new ModelWeigh(
+                 typeof(ModuleFileDefinition),
+                 new[]
+                {
+                    typeof (BreakRoleInheritanceDefinition),
+                    typeof (ResetRoleInheritanceDefinition),
+                }));
         }
 
         #endregion
@@ -37,12 +54,28 @@ namespace SPMeta2.Common
 
         #region methods
 
+        private static void InitListItemScope()
+        {
+            Weighs.Add(new ModelWeigh(
+                typeof(ListItemDefinition),
+                new[]
+                {
+                    typeof (BreakRoleInheritanceDefinition),
+                    typeof (ResetRoleInheritanceDefinition),
+               
+                    typeof (PropertyDefinition)
+                }));
+        }
+
         private static void InitFolderScope()
         {
             Weighs.Add(new ModelWeigh(
                 typeof(FolderDefinition),
                 new[]
                 {
+                    typeof (BreakRoleInheritanceDefinition),
+                    typeof (ResetRoleInheritanceDefinition),
+                    typeof (SecurityRoleLinkDefinition),
                     typeof (PropertyDefinition)
                 }));
         }
@@ -53,15 +86,38 @@ namespace SPMeta2.Common
                 typeof(ListDefinition),
                 new[]
                 {
+                    typeof (BreakRoleInheritanceDefinition),
+                    typeof (ResetRoleInheritanceDefinition),
+                    typeof (SecurityRoleLinkDefinition),
+
                     typeof (PropertyDefinition),
                     
+                    typeof (ContentTypeDefinition),
                     typeof (ContentTypeLinkDefinition),
+                    
+                    // Content type related provision should be done before list items provision #636
+                    // https://github.com/SubPointSolutions/spmeta2/issues/636
+                    typeof (RemoveContentTypeLinksDefinition),
+                    typeof (HideContentTypeLinksDefinition),
+                    typeof (UniqueContentTypeOrderDefinition),
+
+                    // field and field links could be added with 'AddToAllContentTypes' options
+                    // we need content types deployed first
+                    typeof (FieldDefinition),
+                    typeof (LookupFieldDefinition),
+                    typeof (DependentLookupFieldDefinition),
+
+                    typeof (ListFieldLinkDefinition),
+
                     typeof (SP2013WorkflowSubscriptionDefinition),
                     
                     typeof (FolderDefinition),
                     
                     typeof (ListViewDefinition),
                     typeof (ModuleFileDefinition),
+
+                    typeof (ListItemDefinition),
+                    typeof (ListItemFieldValueDefinition),
                 }));
         }
 
@@ -71,16 +127,33 @@ namespace SPMeta2.Common
                 typeof(WebDefinition),
                 new[]
                 {
+                    // AppDefinition should be deployed before pages #628
+                    // https://github.com/SubPointSolutions/spmeta2/issues/628
+                    typeof (AppDefinition),
+                    
                     typeof (FeatureDefinition),
+
+                    typeof (SecurityGroupDefinition),
+
+                    typeof (BreakRoleInheritanceDefinition),
+                    typeof (ResetRoleInheritanceDefinition),
+
+                    typeof (SecurityRoleLinkDefinition),
 
                     typeof (PropertyDefinition),
                     
                     typeof (FieldDefinition),
+                    typeof (LookupFieldDefinition),
+                    typeof (DependentLookupFieldDefinition),
+
                     typeof (ContentTypeDefinition),
                     
                     typeof (SP2013WorkflowDefinition),
-                    typeof (ListDefinition),
                     
+                    typeof (ListDefinition),
+                    // goes after list definitions to make sure you get history/task lists 
+                    typeof (SP2013WorkflowSubscriptionDefinition),
+
                     typeof (MasterPageSettingsDefinition),
                     typeof (WelcomePageDefinition)
                 }));
@@ -95,7 +168,7 @@ namespace SPMeta2.Common
                 {
                     typeof (SandboxSolutionDefinition),
                     typeof (FeatureDefinition),
-
+                    
                     typeof (PropertyDefinition),
 
                     typeof (SecurityGroupDefinition),
@@ -104,6 +177,9 @@ namespace SPMeta2.Common
                     typeof (UserCustomActionDefinition),
 
                     typeof (FieldDefinition),
+                    typeof (LookupFieldDefinition),
+                    typeof (DependentLookupFieldDefinition),
+
                     typeof (ContentTypeDefinition),
                     
                     typeof (WebDefinition)

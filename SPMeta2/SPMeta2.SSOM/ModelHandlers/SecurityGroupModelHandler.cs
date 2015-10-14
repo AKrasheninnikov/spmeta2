@@ -1,8 +1,11 @@
 ﻿using System;
+using System.Linq;
 using Microsoft.SharePoint;
+using Microsoft.SharePoint.Utilities;
 using SPMeta2.Common;
 using SPMeta2.Definitions;
 using SPMeta2.Definitions.Base;
+using SPMeta2.Exceptions;
 using SPMeta2.ModelHandlers;
 using SPMeta2.Services;
 using SPMeta2.SSOM.ModelHosts;
@@ -19,8 +22,14 @@ namespace SPMeta2.SSOM.ModelHandlers
             get { return typeof(SecurityGroupDefinition); }
         }
 
-        public override void WithResolvingModelHost(object modelHost, DefinitionBase model, Type childModelType, Action<object> action)
+        public override void WithResolvingModelHost(ModelHostResolveContext modelHostContext)
         {
+            var modelHost = modelHostContext.ModelHost;
+            var model = modelHostContext.Model;
+            var childModelType = modelHostContext.ChildModelType;
+            var action = modelHostContext.Action;
+
+
             var web = ExtractWeb(modelHost);
 
             if (web != null)
@@ -54,6 +63,12 @@ namespace SPMeta2.SSOM.ModelHandlers
 
         private SPWeb ExtractWeb(object modelHost)
         {
+            if (modelHost is SecurityGroupModelHost)
+                return (modelHost as SecurityGroupModelHost).SecurityGroup.ParentWeb;
+
+            if (modelHost is SiteModelHost)
+                return (modelHost as SiteModelHost).HostSite.RootWeb;
+
             if (modelHost is WebModelHost)
                 return (modelHost as WebModelHost).HostWeb;
 
@@ -71,10 +86,70 @@ namespace SPMeta2.SSOM.ModelHandlers
 
         public override void DeployModel(object modelHost, DefinitionBase model)
         {
-            var siteModelHost = modelHost.WithAssertAndCast<SiteModelHost>("modelHost", value => value.RequireNotNull());
+            var siteModelHost = modelHost as SiteModelHost;
+
+            if (modelHost is SiteModelHost)
+            {
+                DeploySiteGroup(modelHost, modelHost as SiteModelHost, model);
+            }
+            else if (modelHost is SecurityGroupModelHost)
+            {
+                DeploySiteGroupUnderSiteGroup(modelHost, modelHost as SecurityGroupModelHost, model);
+            }
+            else
+            {
+                throw new SPMeta2UnsupportedModelHostException("modelHost");
+            }
+        }
+
+        private void DeploySiteGroupUnderSiteGroup(object modelHost, SecurityGroupModelHost securityGroupModelHost, DefinitionBase model)
+        {
+            var securityGroupModel = model.WithAssertAndCast<SecurityGroupDefinition>("model",
+                value => value.RequireNotNull());
+
+            var currentGroup = securityGroupModelHost.SecurityGroup;
+            var subGroup = securityGroupModelHost.SecurityGroup.ParentWeb.EnsureUser(securityGroupModel.Name);
+
+            var existingGroup = currentGroup.Users.OfType<SPPrincipal>()
+                               .FirstOrDefault(u => u.ID == subGroup.ID);
+
+            InvokeOnModelEvent(this, new ModelEventArgs
+            {
+                CurrentModelNode = null,
+                Model = null,
+                EventType = ModelEventType.OnProvisioning,
+                Object = currentGroup,
+                ObjectType = typeof(SPPrincipal),
+                ObjectDefinition = securityGroupModel,
+                ModelHost = modelHost
+            });
+
+            if (existingGroup == null)
+            {
+                currentGroup.Users.Add(subGroup.LoginName, subGroup.Email, subGroup.Name, subGroup.Notes);
+            }
+
+            InvokeOnModelEvent(this, new ModelEventArgs
+            {
+                CurrentModelNode = null,
+                Model = null,
+                EventType = ModelEventType.OnProvisioned,
+                Object = currentGroup,
+                ObjectType = typeof(SPPrincipal),
+                ObjectDefinition = securityGroupModel,
+                ModelHost = modelHost
+            });
+
+            if (existingGroup == null)
+                currentGroup.Update();
+        }
+
+        private void DeploySiteGroup(object modelHost, SiteModelHost siteModelHost, DefinitionBase model)
+        {
             var site = siteModelHost.HostSite;
 
-            var securityGroupModel = model.WithAssertAndCast<SecurityGroupDefinition>("model", value => value.RequireNotNull());
+            var securityGroupModel = model.WithAssertAndCast<SecurityGroupDefinition>("model",
+                value => value.RequireNotNull());
 
             var web = site.RootWeb;
 
@@ -87,18 +162,28 @@ namespace SPMeta2.SSOM.ModelHandlers
                 currentGroup = site.RootWeb.SiteGroups[securityGroupModel.Name];
                 hasInitialGroup = true;
 
-                TraceService.Information((int)LogEventId.ModelProvisionProcessingExistingObject, "Processing existing security group");
-
+                TraceService.Information((int)LogEventId.ModelProvisionProcessingExistingObject,
+                    "Processing existing security group");
             }
             catch (SPException)
             {
-                var ownerUser = EnsureOwnerUser(web, securityGroupModel);
                 var defaultUser = EnsureDefaultUser(web, securityGroupModel);
 
-                TraceService.Information((int)LogEventId.ModelProvisionProcessingNewObject, "Processing new security group");
+                TraceService.Information((int)LogEventId.ModelProvisionProcessingNewObject,
+                    "Processing new security group");
 
-                web.SiteGroups.Add(securityGroupModel.Name, ownerUser, defaultUser, securityGroupModel.Description);
+                // owner would be defaut site owner
+                web.SiteGroups.Add(securityGroupModel.Name, web.Site.Owner, defaultUser,
+                    securityGroupModel.Description ?? string.Empty);
                 currentGroup = web.SiteGroups[securityGroupModel.Name];
+
+                // updating the owner or leave as default
+                // Enhance 'SecurityGroupDefinition' provision - add self-owner support #516
+                // https://github.com/SubPointSolutions/spmeta2/issues/516
+                var ownerUser = EnsureOwnerUser(web, securityGroupModel.Owner);
+
+                currentGroup.Owner = ownerUser;
+                currentGroup.Update();
             }
 
             if (hasInitialGroup)
@@ -109,7 +194,7 @@ namespace SPMeta2.SSOM.ModelHandlers
                     Model = null,
                     EventType = ModelEventType.OnProvisioning,
                     Object = currentGroup,
-                    ObjectType = typeof(SPGroup),
+                    ObjectType = typeof(SPPrincipal),
                     ObjectDefinition = securityGroupModel,
                     ModelHost = modelHost
                 });
@@ -122,15 +207,27 @@ namespace SPMeta2.SSOM.ModelHandlers
                     Model = null,
                     EventType = ModelEventType.OnProvisioning,
                     Object = null,
-                    ObjectType = typeof(SPGroup),
+                    ObjectType = typeof(SPPrincipal),
                     ObjectDefinition = securityGroupModel,
                     ModelHost = modelHost
                 });
             }
 
             currentGroup.OnlyAllowMembersViewMembership = securityGroupModel.OnlyAllowMembersViewMembership;
-            currentGroup.Owner = EnsureOwnerUser(web, securityGroupModel);
-            currentGroup.Description = securityGroupModel.Description;
+
+            if (!string.IsNullOrEmpty(securityGroupModel.Owner))
+                currentGroup.Owner = EnsureOwnerUser(web, securityGroupModel.Owner);
+
+            currentGroup.Description = securityGroupModel.Description ?? string.Empty;
+
+            if (securityGroupModel.AllowMembersEditMembership.HasValue)
+                currentGroup.AllowMembersEditMembership = securityGroupModel.AllowMembersEditMembership.Value;
+
+            if (securityGroupModel.AllowRequestToJoinLeave.HasValue)
+                currentGroup.AllowRequestToJoinLeave = securityGroupModel.AllowRequestToJoinLeave.Value;
+
+            if (securityGroupModel.AutoAcceptRequestToJoinLeave.HasValue)
+                currentGroup.AutoAcceptRequestToJoinLeave = securityGroupModel.AutoAcceptRequestToJoinLeave.Value;
 
             InvokeOnModelEvent(this, new ModelEventArgs
             {
@@ -138,7 +235,7 @@ namespace SPMeta2.SSOM.ModelHandlers
                 Model = null,
                 EventType = ModelEventType.OnProvisioned,
                 Object = currentGroup,
-                ObjectType = typeof(SPGroup),
+                ObjectType = typeof(SPPrincipal),
                 ObjectDefinition = securityGroupModel,
                 ModelHost = modelHost
             });
@@ -146,15 +243,31 @@ namespace SPMeta2.SSOM.ModelHandlers
             currentGroup.Update();
         }
 
-        protected virtual SPUser EnsureOwnerUser(SPWeb web, SecurityGroupDefinition groupModel)
+        protected virtual SPPrincipal EnsureOwnerUser(SPWeb web, string owner)
         {
-            if (string.IsNullOrEmpty(groupModel.Owner))
+            if (string.IsNullOrEmpty(owner))
             {
                 return web.Site.Owner;
             }
             else
             {
-                return web.EnsureUser(groupModel.Owner);
+                bool max;
+
+                var principalInfos = SPUtility.SearchPrincipals(web, owner, SPPrincipalType.All, SPPrincipalSource.All, null, 2, out max);
+
+                if (principalInfos.Count > 0)
+                //if (principalInfos.Value != null)
+                {
+                    var info = principalInfos[0];
+
+                    if (info.PrincipalType == SPPrincipalType.User || info.PrincipalType == SPPrincipalType.SecurityGroup)
+                        return web.EnsureUser(info.LoginName);
+
+                    if (info.PrincipalType == SPPrincipalType.SharePointGroup)
+                        return web.SiteGroups.GetByID(info.PrincipalId);
+                }
+
+                throw new SPMeta2Exception(string.Format("Cannot resolve Principal by string value: [{0}]", owner));
             }
         }
 

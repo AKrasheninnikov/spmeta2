@@ -2,11 +2,14 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
 using SPMeta2.Attributes;
+using SPMeta2.Attributes.Identity;
 using SPMeta2.Attributes.Regression;
 using SPMeta2.Definitions.Base;
 using SPMeta2.Utils;
+using System.Runtime.Serialization;
+using SPMeta2.Attributes.Capabilities;
 
 namespace SPMeta2.Definitions
 {
@@ -15,16 +18,31 @@ namespace SPMeta2.Definitions
 
     [DefaultRootHostAttribute(typeof(WebDefinition))]
     [DefaultParentHost(typeof(WebDefinition))]
+
+    [Serializable]
+    [DataContract]
+
+    [ExpectManyInstances]
+
+    [ParentHostCapability(typeof(WebDefinition))]
     public class AppPrincipalDefinition : DefinitionBase
     {
         #region properties
 
+        [DataMember]
         public string Title { get; set; }
 
+        [DataMember]
+        [IdentityKey]
         public string AppId { get; set; }
+
+        [DataMember]
         public string AppSecret { get; set; }
 
+        [DataMember]
         public string AppDomain { get; set; }
+
+        [DataMember]
         public string RedirectURI { get; set; }
 
         #endregion

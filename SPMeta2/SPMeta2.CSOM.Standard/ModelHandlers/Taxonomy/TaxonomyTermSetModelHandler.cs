@@ -36,8 +36,14 @@ namespace SPMeta2.CSOM.Standard.ModelHandlers.Taxonomy
 
         }
 
-        public override void WithResolvingModelHost(object modelHost, DefinitionBase model, Type childModelType, Action<object> action)
+        public override void WithResolvingModelHost(ModelHostResolveContext modelHostContext)
         {
+            var modelHost = modelHostContext.ModelHost;
+            var model = modelHostContext.Model;
+            var childModelType = modelHostContext.ChildModelType;
+            var action = modelHostContext.Action;
+
+
             var groupModelHost = modelHost.WithAssertAndCast<TermGroupModelHost>("modelHost", value => value.RequireNotNull());
             var termSetModel = model.WithAssertAndCast<TaxonomyTermSetDefinition>("model", value => value.RequireNotNull());
 
@@ -77,6 +83,8 @@ namespace SPMeta2.CSOM.Standard.ModelHandlers.Taxonomy
                     ? termGroup.CreateTermSet(termSetModel.Name, termSetModel.Id.Value, termSetModel.LCID)
                     : termGroup.CreateTermSet(termSetModel.Name, Guid.NewGuid(), termSetModel.LCID);
 
+                MapTermSet(currentTermSet, termSetModel);
+
                 InvokeOnModelEvent(this, new ModelEventArgs
                 {
                     CurrentModelNode = null,
@@ -92,6 +100,8 @@ namespace SPMeta2.CSOM.Standard.ModelHandlers.Taxonomy
             {
                 TraceService.Information((int)LogEventId.ModelProvisionProcessingExistingObject, "Processing existing Term Set");
 
+                MapTermSet(currentTermSet, termSetModel);
+
                 InvokeOnModelEvent(this, new ModelEventArgs
                 {
                     CurrentModelNode = null,
@@ -103,6 +113,20 @@ namespace SPMeta2.CSOM.Standard.ModelHandlers.Taxonomy
                     ModelHost = modelHost
                 });
             }
+
+            termStore.CommitAll();
+            termStore.Context.ExecuteQueryWithTrace();
+        }
+
+        private static void MapTermSet(TermSet currentTermSet, TaxonomyTermSetDefinition termSetModel)
+        {
+            currentTermSet.Description = termSetModel.Description;
+
+            if (termSetModel.IsOpenForTermCreation.HasValue)
+                currentTermSet.IsOpenForTermCreation = termSetModel.IsOpenForTermCreation.Value;
+
+            if (termSetModel.IsAvailableForTagging.HasValue)
+                currentTermSet.IsAvailableForTagging = termSetModel.IsAvailableForTagging.Value;
         }
 
         protected TermSet FindTermSet(TermGroup termGroup, TaxonomyTermSetDefinition termSetModel)
@@ -114,14 +138,22 @@ namespace SPMeta2.CSOM.Standard.ModelHandlers.Taxonomy
             context.Load(termGroup.TermSets);
             context.ExecuteQueryWithTrace();
 
-            //if (termSetModel.Id.HasValue)
-            //    result = termGroup.TermSets.FirstOrDefault(t => t.Id == termSetModel.Id.Value);
-            //else if (!string.IsNullOrEmpty(termSetModel.Name))
-            //    result = termGroup.TermSets.FirstOrDefault(t => t.Name.ToUpper() == termSetModel.Name.ToUpper());
-
             if (termSetModel.Id.HasValue)
             {
-                result = termGroup.TermSets.GetById(termSetModel.Id.Value);
+                var scope = new ExceptionHandlingScope(context);
+                using (scope.StartScope())
+                {
+                    using (scope.StartTry())
+                    {
+                        result = termGroup.TermSets.GetById(termSetModel.Id.Value);
+                        context.Load(result);
+                    }
+
+                    using (scope.StartCatch())
+                    {
+
+                    }
+                }
             }
             else if (!string.IsNullOrEmpty(termSetModel.Name))
             {

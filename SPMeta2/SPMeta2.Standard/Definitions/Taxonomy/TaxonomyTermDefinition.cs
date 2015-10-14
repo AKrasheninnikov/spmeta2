@@ -1,12 +1,35 @@
 ﻿using System;
 using SPMeta2.Attributes;
+using SPMeta2.Attributes.Identity;
 using SPMeta2.Attributes.Regression;
 using SPMeta2.Definitions;
 using SPMeta2.Definitions.Base;
 using SPMeta2.Utils;
+using System.Runtime.Serialization;
+using SPMeta2.Attributes.Capabilities;
+using System.Collections.Generic;
 
 namespace SPMeta2.Standard.Definitions.Taxonomy
 {
+    [Serializable]
+    [DataContract]
+    public class TaxonomyTermCustomProperty
+    {
+        public TaxonomyTermCustomProperty()
+        {
+            Override = true;
+        }
+
+        [DataMember]
+        public string Name { get; set; }
+
+        [DataMember]
+        public string Value { get; set; }
+
+        [DataMember]
+        public bool Override { get; set; }
+    }
+
     /// <summary>
     /// Allows to define and deploy taxonomy term.
     /// </summary>
@@ -16,7 +39,18 @@ namespace SPMeta2.Standard.Definitions.Taxonomy
     [DefaultParentHost(typeof(TaxonomyTermSetDefinition))]
     [DefaultRootHost(typeof(SiteDefinition))]
 
+    [ExpectAddHostExtensionMethod]
     [Serializable]
+    [DataContract]
+    [ExpectArrayExtensionMethod]
+
+
+    [ParentHostCapability(typeof(TaxonomyTermSetDefinition))]
+    [ParentHostCapability(typeof(TaxonomyTermDefinition))]
+
+    [ExpectManyInstances]
+
+
     public class TaxonomyTermDefinition : DefinitionBase
     {
         #region constructors
@@ -24,16 +58,35 @@ namespace SPMeta2.Standard.Definitions.Taxonomy
         public TaxonomyTermDefinition()
         {
             LCID = 1033;
+            CustomProperties = new List<TaxonomyTermCustomProperty>();
         }
 
         #endregion
 
         #region properties
 
+        [ExpectValidation]
+        [ExpectRequired]
+        [DataMember]
+        [IdentityKey]
         public string Name { get; set; }
+
+        [ExpectValidation]
+        [DataMember]
+        public string Description { get; set; }
+
+        [ExpectValidation]
+        [DataMember]
+        [IdentityKey]
         public Guid? Id { get; set; }
 
+        [ExpectValidation]
+        [DataMember]
         public int LCID { get; set; }
+
+        [ExpectValidation]
+        [DataMember]
+        public List<TaxonomyTermCustomProperty> CustomProperties { get; set; }
 
         #endregion
 

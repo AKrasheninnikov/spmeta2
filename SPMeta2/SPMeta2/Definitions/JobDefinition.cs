@@ -1,12 +1,16 @@
-﻿using SPMeta2.Attributes;
+﻿using System.Collections.ObjectModel;
+using SPMeta2.Attributes;
+using SPMeta2.Attributes.Identity;
 using SPMeta2.Attributes.Regression;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
 using SPMeta2.Definitions.Base;
 using SPMeta2.Utils;
+using System.Runtime.Serialization;
+using SPMeta2.Attributes.Capabilities;
 
 namespace SPMeta2.Definitions
 {
@@ -20,8 +24,23 @@ namespace SPMeta2.Definitions
     [DefaultParentHostAttribute(typeof(WebApplicationDefinition))]
 
     [Serializable]
+    [DataContract]
+    [ExpectWithExtensionMethod]
+
+    [ParentHostCapability(typeof(WebApplicationDefinition))]
+
+    [ExpectManyInstances]
     public class JobDefinition : DefinitionBase
     {
+        #region constructors
+
+        public JobDefinition()
+        {
+            ConstructorParams = new Collection<JobDefinitionCtorParams>();
+        }
+
+        #endregion
+
         #region properties
 
         /// <summary>
@@ -30,7 +49,13 @@ namespace SPMeta2.Definitions
         /// 
 
         [ExpectValidation]
+        [DataMember]
+        [IdentityKey]
         public string Name { get; set; }
+
+        [ExpectValidation]
+        [DataMember]
+        public string Title { get; set; }
 
         /// <summary>
         /// Type of the target timer job.
@@ -38,6 +63,7 @@ namespace SPMeta2.Definitions
         /// 
 
         [ExpectValidation]
+        [DataMember]
         public string JobType { get; set; }
 
         /// <summary>
@@ -48,7 +74,12 @@ namespace SPMeta2.Definitions
         /// 
 
         [ExpectValidation]
+        [DataMember]
         public string ScheduleString { get; set; }
+
+        [DataMember]
+
+        public Collection<JobDefinitionCtorParams> ConstructorParams { get; set; }
 
         #endregion
 
@@ -64,5 +95,16 @@ namespace SPMeta2.Definitions
         }
 
         #endregion
+    }
+
+    [DataContract]
+    [Serializable]
+
+    public enum JobDefinitionCtorParams
+    {
+        [EnumMember]
+        WebApplication,
+        [EnumMember]
+        JobName
     }
 }

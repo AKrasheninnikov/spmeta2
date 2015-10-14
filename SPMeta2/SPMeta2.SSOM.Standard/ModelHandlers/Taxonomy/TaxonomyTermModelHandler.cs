@@ -2,16 +2,18 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using Microsoft.SharePoint;
 using Microsoft.SharePoint.Taxonomy;
 using SPMeta2.Common;
 using SPMeta2.Definitions;
 using SPMeta2.Definitions.Base;
+using SPMeta2.Exceptions;
 using SPMeta2.Services;
 using SPMeta2.SSOM.ModelHandlers;
 using SPMeta2.SSOM.ModelHosts;
 using SPMeta2.SSOM.Standard.ModelHosts;
 using SPMeta2.Standard.Definitions.Taxonomy;
+using SPMeta2.Standard.Utils;
 using SPMeta2.Utils;
 
 namespace SPMeta2.SSOM.Standard.ModelHandlers.Taxonomy
@@ -31,34 +33,151 @@ namespace SPMeta2.SSOM.Standard.ModelHandlers.Taxonomy
 
         public override void DeployModel(object modelHost, DefinitionBase model)
         {
-            var termSetMModelHost = modelHost.WithAssertAndCast<TermSetModelHost>("modelHost", value => value.RequireNotNull());
-            var termModel = model.WithAssertAndCast<TaxonomyTermDefinition>("model", value => value.RequireNotNull());
+            var definition = model.WithAssertAndCast<TaxonomyTermDefinition>("model", value => value.RequireNotNull());
 
-            DeployTaxonomyTerm(modelHost, termSetMModelHost, termModel);
+            // TODO, move to common validator infrastructure
+            if (!TaxonomyUtility.IsValidTermName(definition.Name))
+            {
+                throw new SPMeta2Exception(
+                    string.Format("Term name [{0}] cannot contain any of the following characters: \" ; < > | and Tab",
+                        definition.Name));
+            }
 
+            if (modelHost is TermModelHost)
+                DeployTermUnderTerm(modelHost, modelHost as TermModelHost, definition);
+            else if (modelHost is TermSetModelHost)
+                DeployTermUnderTermSet(modelHost, modelHost as TermSetModelHost, definition);
+            else
+            {
+                throw new SPMeta2UnsupportedModelHostException(string.Format("Model host of type: [{0}] is not supported", modelHost.GetType()));
+            }
         }
 
-        public override void WithResolvingModelHost(object modelHost, DefinitionBase model, Type childModelType, Action<object> action)
+        public override void WithResolvingModelHost(ModelHostResolveContext modelHostContext)
         {
-            var groupModelHost = modelHost.WithAssertAndCast<TermSetModelHost>("modelHost", value => value.RequireNotNull());
-            var termSetModel = model.WithAssertAndCast<TaxonomyTermDefinition>("model", value => value.RequireNotNull());
+            var modelHost = modelHostContext.ModelHost;
+            var model = modelHostContext.Model;
+            var childModelType = modelHostContext.ChildModelType;
+            var action = modelHostContext.Action;
 
-            var currentTermSet = FindTerm(groupModelHost.HostTermSet, termSetModel);
+
+            var definition = model.WithAssertAndCast<TaxonomyTermDefinition>("model", value => value.RequireNotNull());
+
+            Term currentTerm = null;
+            Group group = null;
+            TermSet termSet = null;
+            TermStore termStore = null;
+            SPSite hostSite = null;
+
+            if (modelHost is TermModelHost)
+            {
+                var h = (modelHost as TermModelHost);
+
+                group = h.HostGroup;
+                termSet = h.HostTermSet;
+                termStore = h.HostTermStore;
+                hostSite = h.HostSite;
+
+                currentTerm = FindTermInTerm(h.HostTerm, definition);
+            }
+            else if (modelHost is TermSetModelHost)
+            {
+                var h = (modelHost as TermSetModelHost);
+
+                termStore = h.HostTermStore;
+                group = h.HostGroup;
+                termSet = h.HostTermSet;
+                hostSite = h.HostSite;
+
+                currentTerm = FindTermInTermSet(h.HostTermSet, definition);
+            }
 
             action(new TermModelHost
             {
-                HostGroup = groupModelHost.HostGroup,
-                HostTermSet = groupModelHost.HostTermSet,
-                HostTerm = currentTermSet
+                HostGroup = group,
+                HostTermSet = termSet,
+                HostTerm = currentTerm,
+                HostTermStore = termStore,
+                HostSite = hostSite
             });
+
+            termStore.CommitAll();
         }
 
-        private void DeployTaxonomyTerm(object modelHost, TermSetModelHost groupModelHost, TaxonomyTermDefinition termModel)
+        private void DeployTermUnderTerm(object modelHost, TermModelHost termModelHost, TaxonomyTermDefinition termModel)
         {
-            var termStore = groupModelHost.HostTermStore;
+            var term = termModelHost.HostTerm;
+
+            var currentTerm = FindTermInTerm(term, termModel);
+
+            InvokeOnModelEvent(this, new ModelEventArgs
+            {
+                CurrentModelNode = null,
+                Model = null,
+                EventType = ModelEventType.OnProvisioning,
+                Object = currentTerm,
+                ObjectType = typeof(Term),
+                ObjectDefinition = termModel,
+                ModelHost = modelHost
+            });
+
+            if (currentTerm == null)
+            {
+                TraceService.Information((int)LogEventId.ModelProvisionProcessingNewObject, "Processing new Term");
+
+                currentTerm = termModel.Id.HasValue
+                    ? term.CreateTerm(termModel.Name, termModel.LCID, termModel.Id.Value)
+                    : term.CreateTerm(termModel.Name, termModel.LCID);
+
+                MapTermProperties(currentTerm, termModel);
+
+                InvokeOnModelEvent(this, new ModelEventArgs
+                {
+                    CurrentModelNode = null,
+                    Model = null,
+                    EventType = ModelEventType.OnProvisioned,
+                    Object = currentTerm,
+                    ObjectType = typeof(Term),
+                    ObjectDefinition = termModel,
+                    ModelHost = modelHost
+                });
+            }
+            else
+            {
+                TraceService.Information((int)LogEventId.ModelProvisionProcessingExistingObject, "Processing existing Term");
+
+                MapTermProperties(currentTerm, termModel);
+
+                InvokeOnModelEvent(this, new ModelEventArgs
+                {
+                    CurrentModelNode = null,
+                    Model = null,
+                    EventType = ModelEventType.OnProvisioned,
+                    Object = currentTerm,
+                    ObjectType = typeof(Term),
+                    ObjectDefinition = termModel,
+                    ModelHost = modelHost
+                });
+            }
+
+            termModelHost.HostTermStore.CommitAll();
+        }
+
+        protected void MapTermProperties(Term currentTerm, TaxonomyTermDefinition termModel)
+        {
+            currentTerm.SetDescription(termModel.Description, termModel.LCID);
+
+            foreach (var customProp in termModel.CustomProperties.Where(p => p.Override))
+            {
+                currentTerm.SetCustomProperty(customProp.Name, customProp.Value);
+            }
+        }
+
+        private void DeployTermUnderTermSet(object modelHost, TermSetModelHost groupModelHost, TaxonomyTermDefinition termModel)
+        {
             var termSet = groupModelHost.HostTermSet;
 
-            var currentTerm = FindTerm(termSet, termModel);
+            var currentTerm = FindTermInTermSet(termSet, termModel);
 
             InvokeOnModelEvent(this, new ModelEventArgs
             {
@@ -79,6 +198,8 @@ namespace SPMeta2.SSOM.Standard.ModelHandlers.Taxonomy
                     ? termSet.CreateTerm(termModel.Name, termModel.LCID, termModel.Id.Value)
                     : termSet.CreateTerm(termModel.Name, termModel.LCID);
 
+                MapTermProperties(currentTerm, termModel);
+
                 InvokeOnModelEvent(this, new ModelEventArgs
                 {
                     CurrentModelNode = null,
@@ -94,6 +215,8 @@ namespace SPMeta2.SSOM.Standard.ModelHandlers.Taxonomy
             {
                 TraceService.Information((int)LogEventId.ModelProvisionProcessingExistingObject, "Processing existing Term");
 
+                MapTermProperties(currentTerm, termModel);
+
                 InvokeOnModelEvent(this, new ModelEventArgs
                 {
                     CurrentModelNode = null,
@@ -105,9 +228,23 @@ namespace SPMeta2.SSOM.Standard.ModelHandlers.Taxonomy
                     ModelHost = modelHost
                 });
             }
+
+            groupModelHost.HostTermStore.CommitAll();
         }
 
-        protected Term FindTerm(TermSet termSet, TaxonomyTermDefinition termModel)
+        private Term FindTermInTerm(Term term, TaxonomyTermDefinition termModel)
+        {
+            Term result = null;
+
+            if (termModel.Id.HasValue)
+                result = term.Terms.FirstOrDefault(t => t.Id == termModel.Id.Value);
+            else if (!string.IsNullOrEmpty(termModel.Name))
+                result = term.Terms.FirstOrDefault(t => t.Name == termModel.Name);
+
+            return result;
+        }
+
+        protected Term FindTermInTermSet(TermSet termSet, TaxonomyTermDefinition termModel)
         {
             Term result = null;
 

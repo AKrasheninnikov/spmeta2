@@ -7,7 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
 using SPMeta2.Utils;
 using SPMeta2.Common;
 using SPMeta2.SSOM.ModelHandlers.Base;
@@ -18,14 +18,27 @@ namespace SPMeta2.SSOM.ModelHandlers.Base
     public abstract class NavigationNodeModelHandler<TNavigationNode> : SSOMModelHandlerBase
         where TNavigationNode : NavigationNodeDefinitionBase
     {
+
+        #region properties
+
+        protected WebModelHost CurrentWebModelHost { get; set; }
+
+        #endregion
+
         #region methods
 
         public override void DeployModel(object modelHost, DefinitionBase model)
         {
             var navigationNode = model as TNavigationNode;
 
+            // assuming deployment always goes from root web to te children
+            // so that CurrentWebModelHost won't even be null
+
             if (modelHost is WebModelHost)
+            {
+                CurrentWebModelHost = modelHost as WebModelHost;
                 EnsureRootNavigationNode(modelHost as WebModelHost, navigationNode as NavigationNodeDefinitionBase);
+            }
             else if (modelHost is SPNavigationNode)
                 EnsurehNavigationNode(modelHost as SPNavigationNode, navigationNode);
             else
@@ -62,13 +75,15 @@ namespace SPMeta2.SSOM.ModelHandlers.Base
 
             if (existingNode == null)
             {
-                existingNode = new SPNavigationNode(quickLaunchNode.Title, quickLaunchNode.Url, quickLaunchNode.IsExternal);
+                existingNode = new SPNavigationNode(quickLaunchNode.Title, ResolveTokenizedUrl(CurrentWebModelHost, quickLaunchNode), quickLaunchNode.IsExternal);
                 topNavigationNode.AddAsLast(existingNode);
             }
 
             existingNode.Title = quickLaunchNode.Title;
-            existingNode.Url = quickLaunchNode.Url;
+            existingNode.Url = ResolveTokenizedUrl(CurrentWebModelHost, quickLaunchNode);
             existingNode.IsVisible = quickLaunchNode.IsVisible;
+
+            ProcessLocalization(existingNode, quickLaunchNode);
 
             InvokeOnModelEvent(this, new ModelEventArgs
             {
@@ -86,12 +101,20 @@ namespace SPMeta2.SSOM.ModelHandlers.Base
             return existingNode;
         }
 
-        public override void WithResolvingModelHost(object modelHost, DefinitionBase model, Type childModelType, Action<object> action)
+        public override void WithResolvingModelHost(ModelHostResolveContext modelHostContext)
         {
+            var modelHost = modelHostContext.ModelHost;
+            var model = modelHostContext.Model;
+            var childModelType = modelHostContext.ChildModelType;
+            var action = modelHostContext.Action;
+
+
             var quickLaunchNode = model as NavigationNodeDefinitionBase;
 
             if (modelHost is WebModelHost)
             {
+                CurrentWebModelHost = modelHost as WebModelHost;
+
                 var webModelHost = modelHost.WithAssertAndCast<WebModelHost>("modelHost", value => value.RequireNotNull());
                 var currentNode = EnsureRootNavigationNode(webModelHost, quickLaunchNode);
 
@@ -120,12 +143,31 @@ namespace SPMeta2.SSOM.ModelHandlers.Base
 
             if (currentNode == null)
             {
+                var url = ResolveTokenizedUrl(CurrentWebModelHost, definition);
+
                 currentNode = nodes
                                 .OfType<SPNavigationNode>()
-                                .FirstOrDefault(n => !string.IsNullOrEmpty(n.Url) && (n.Url.ToUpper().EndsWith(definition.Url.ToUpper())));
+                                .FirstOrDefault(n => !string.IsNullOrEmpty(n.Url) && (n.Url.ToUpper().EndsWith(url.ToUpper())));
             }
 
             return currentNode;
+        }
+
+        protected virtual string ResolveTokenizedUrl(WebModelHost webModelHost, NavigationNodeDefinitionBase rootNode)
+        {
+            var urlValue = rootNode.Url;
+
+            TraceService.VerboseFormat((int)LogEventId.ModelProvisionCoreCall, "Original Url: [{0}]", urlValue);
+
+            var newUrlValue = TokenReplacementService.ReplaceTokens(new TokenReplacementContext
+            {
+                Value = urlValue,
+                Context = webModelHost.HostWeb
+            }).Value;
+
+            TraceService.VerboseFormat((int)LogEventId.ModelProvisionCoreCall, "Token replaced Url: [{0}]", newUrlValue);
+
+            return newUrlValue;
         }
 
         private SPNavigationNode EnsureRootNavigationNode(WebModelHost webModelHost, NavigationNodeDefinitionBase rootNode)
@@ -143,14 +185,14 @@ namespace SPMeta2.SSOM.ModelHandlers.Base
                 Object = existingNode,
                 ObjectType = typeof(SPNavigationNode),
                 ObjectDefinition = rootNode,
-                ModelHost = existingNode
+                ModelHost = webModelHost
             });
 
             if (existingNode == null)
             {
                 TraceService.Information((int)LogEventId.ModelProvisionProcessingNewObject, "Processing new navigation node");
 
-                existingNode = new SPNavigationNode(rootNode.Title, rootNode.Url, rootNode.IsExternal);
+                existingNode = new SPNavigationNode(rootNode.Title, ResolveTokenizedUrl(webModelHost, rootNode), rootNode.IsExternal);
                 quickLaunch.AddAsLast(existingNode);
             }
             else
@@ -159,8 +201,10 @@ namespace SPMeta2.SSOM.ModelHandlers.Base
             }
 
             existingNode.Title = rootNode.Title;
-            existingNode.Url = rootNode.Url;
+            existingNode.Url = ResolveTokenizedUrl(webModelHost, rootNode);
             existingNode.IsVisible = rootNode.IsVisible;
+
+            ProcessLocalization(existingNode, rootNode);
 
             InvokeOnModelEvent(this, new ModelEventArgs
             {
@@ -170,12 +214,22 @@ namespace SPMeta2.SSOM.ModelHandlers.Base
                 Object = existingNode,
                 ObjectType = typeof(SPNavigationNode),
                 ObjectDefinition = rootNode,
-                ModelHost = existingNode
+                ModelHost = webModelHost
             });
 
             existingNode.Update();
 
             return existingNode;
+        }
+
+
+        protected virtual void ProcessLocalization(SPNavigationNode obj, NavigationNodeDefinitionBase definition)
+        {
+            if (definition.TitleResource.Any())
+            {
+                foreach (var locValue in definition.TitleResource)
+                    LocalizationService.ProcessUserResource(obj,obj.TitleResource, locValue);
+            }
         }
 
         #endregion

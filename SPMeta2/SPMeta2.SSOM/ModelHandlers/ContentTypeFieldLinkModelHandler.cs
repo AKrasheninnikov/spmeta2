@@ -20,16 +20,59 @@ namespace SPMeta2.SSOM.ModelHandlers
             get { return typeof(ContentTypeFieldLinkDefinition); }
         }
 
+        private SPField FindField(SPFieldCollection fields, ContentTypeFieldLinkDefinition listFieldLinkModel)
+        {
+            if (listFieldLinkModel.FieldId.HasGuidValue())
+            {
+
+                return fields
+                    .OfType<SPField>()
+                    .FirstOrDefault(f => f.Id == listFieldLinkModel.FieldId.Value);
+            }
+
+            if (!string.IsNullOrEmpty(listFieldLinkModel.FieldInternalName))
+            {
+                return fields
+                   .OfType<SPField>()
+                   .FirstOrDefault(f => f.InternalName.ToUpper() == listFieldLinkModel.FieldInternalName.ToUpper());
+            }
+
+            throw new ArgumentException("FieldId or FieldInternalName should be defined");
+        }
+
+        protected SPFieldLink FindExistingFieldLink(SPContentType contentType, ContentTypeFieldLinkDefinition fieldLinkModel)
+        {
+            if (fieldLinkModel.FieldId.HasValue)
+            {
+                return contentType.FieldLinks
+                      .OfType<SPFieldLink>()
+                      .FirstOrDefault(l => l.Id == fieldLinkModel.FieldId);
+
+            }
+            else if (!string.IsNullOrEmpty(fieldLinkModel.FieldInternalName))
+            {
+                return contentType.FieldLinks
+                      .OfType<SPFieldLink>()
+                      .FirstOrDefault(l => l.Name.ToUpper() == fieldLinkModel.FieldInternalName.ToUpper());
+            }
+
+            throw new ArgumentException("FieldId or FieldInternalName must be defined");
+        }
+
+        protected SPField FindAvailableField(SPWeb web, ContentTypeFieldLinkDefinition listFieldLinkModel)
+        {
+            return FindField(web.AvailableFields, listFieldLinkModel);
+        }
+
+
         public override void DeployModel(object modelHost, DefinitionBase model)
         {
             var contentType = modelHost.WithAssertAndCast<SPContentType>("modelHost", value => value.RequireNotNull());
             var contentTypeFieldLinkModel = model.WithAssertAndCast<ContentTypeFieldLinkDefinition>("model", value => value.RequireNotNull());
 
-            var rootWeb = contentType.ParentWeb;
+            var web = contentType.ParentWeb;
 
-            var currentFieldLink = contentType.FieldLinks
-                .OfType<SPFieldLink>()
-                .FirstOrDefault(l => l.Id == contentTypeFieldLinkModel.FieldId);
+            var currentFieldLink = FindExistingFieldLink(contentType, contentTypeFieldLinkModel);
 
             InvokeOnModelEvent(this, new ModelEventArgs
             {
@@ -46,16 +89,23 @@ namespace SPMeta2.SSOM.ModelHandlers
             {
                 TraceService.Information((int)LogEventId.ModelProvisionProcessingNewObject, "Processing new content type field link");
 
-                contentType.FieldLinks.Add(new SPFieldLink(rootWeb.AvailableFields[contentTypeFieldLinkModel.FieldId]));
+                contentType.FieldLinks.Add(new SPFieldLink(FindAvailableField(web, contentTypeFieldLinkModel)));
 
-                currentFieldLink = contentType.FieldLinks
-                .OfType<SPFieldLink>()
-                .FirstOrDefault(l => l.Id == contentTypeFieldLinkModel.FieldId);
+                currentFieldLink = FindExistingFieldLink(contentType, contentTypeFieldLinkModel);
             }
             else
             {
                 TraceService.Information((int)LogEventId.ModelProvisionProcessingExistingObject, "Processing existing content type field link");
             }
+
+            if (contentTypeFieldLinkModel.Required.HasValue)
+                currentFieldLink.Required = contentTypeFieldLinkModel.Required.Value;
+
+            if (contentTypeFieldLinkModel.Hidden.HasValue)
+                currentFieldLink.Hidden = contentTypeFieldLinkModel.Hidden.Value;
+
+            if (!string.IsNullOrEmpty(contentTypeFieldLinkModel.DisplayName))
+                currentFieldLink.DisplayName = contentTypeFieldLinkModel.DisplayName;
 
             InvokeOnModelEvent(this, new ModelEventArgs
             {

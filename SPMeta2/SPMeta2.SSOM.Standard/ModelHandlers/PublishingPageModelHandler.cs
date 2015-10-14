@@ -84,30 +84,97 @@ namespace SPMeta2.SSOM.Standard.ModelHandlers
 
                     var pageItem = afterFile.Item;
 
+                    // settig up dfault values if there is PublishingPageLayout setup
+                    EnsureDefaultValues(pageItem, publishingPageModel);
+
                     pageItem[BuiltInFieldId.Title] = publishingPageModel.Title;
                     pageItem[BuiltInPublishingFieldId.Description] = publishingPageModel.Description;
 
                     pageItem[BuiltInPublishingFieldId.ExpiryDate] = NeverEndDate;
                     pageItem[BuiltInPublishingFieldId.StartDate] = ImmediateDate;
 
-                    pageItem[BuiltInPublishingFieldId.Contact] = list.ParentWeb.CurrentUser;
+                    pageItem[BuiltInFieldId.ContentTypeId] = BuiltInPublishingContentTypeId.Page;
 
+                    pageItem[BuiltInPublishingFieldId.Contact] = list.ParentWeb.CurrentUser;
                     pageItem[BuiltInPublishingFieldId.PublishingPageContent] = publishingPageModel.Content;
 
-                    pageItem[BuiltInFieldId.ContentTypeId] = currentPageLayoutItem[BuiltInPublishingFieldId.AssociatedContentType];
+                    var contentTypeStringValue = ConvertUtils.ToString(currentPageLayoutItem[BuiltInPublishingFieldId.AssociatedContentType]);
+
+                    if (!string.IsNullOrEmpty(contentTypeStringValue))
+                    {
+                        var contentTypeValues = contentTypeStringValue.Split(new string[] { ";#" }, StringSplitOptions.None);
+                        var contentTypeName = contentTypeValues[1];
+                        var contentTypeId = contentTypeValues[2];
+
+                        pageItem[BuiltInInternalFieldNames.ContentTypeId] = contentTypeId;
+                    }
+
+                    // overrideing with custom one
+                    if (!string.IsNullOrEmpty(publishingPageModel.ContentTypeName))
+                    {
+                        var listContentType = FindListContentType(list, publishingPageModel.ContentTypeName);
+
+                        if (listContentType == null)
+                        {
+                            throw new ArgumentNullException(
+                                string.Format("Cannot find content type with Name:[{0}] in List:[{1}]",
+                                    new string[]
+                                    {
+                                        publishingPageModel.ContentTypeName,
+                                        list.Title
+                                    }));
+                        }
+
+                        pageItem[BuiltInFieldId.ContentTypeId] = listContentType.Id.ToString();
+                    }
+
                     pageItem[BuiltInPublishingFieldId.PageLayout] = new SPFieldUrlValue()
                     {
                         Url = currentPageLayoutItem.File.ServerRelativeUrl,
                         Description = currentPageLayoutItem.Title
                     };
-                    pageItem.Properties["PublishingPageLayoutName"] = currentPageLayoutItem.Name;
 
+                    pageItem.Properties["PublishingPageLayoutName"] = currentPageLayoutItem.Name;
 
                     pageItem.SystemUpdate();
                 });
         }
 
-        private SPListItem FindPageLayoutItem(SPWeb web, string pageLayoutFileName)
+        private void EnsureDefaultValues(SPListItem newFileItem, PublishingPageDefinition publishingPageModel)
+        {
+            foreach (var defaultValue in publishingPageModel.DefaultValues)
+            {
+                if (!string.IsNullOrEmpty(defaultValue.FieldName))
+                {
+                    if (newFileItem.Fields.ContainsFieldWithStaticName(defaultValue.FieldName))
+                    {
+                        if (newFileItem[defaultValue.FieldName] == null)
+                            newFileItem[defaultValue.FieldName] = defaultValue.Value;
+                    }
+                }
+                else if (defaultValue.FieldId.HasValue && defaultValue.FieldId != default(Guid))
+                {
+                    if (newFileItem.Fields.OfType<SPField>().Any(f => f.Id == defaultValue.FieldId.Value))
+                    {
+                        if (newFileItem[defaultValue.FieldId.Value] == null)
+                            newFileItem[defaultValue.FieldId.Value] = defaultValue.Value;
+                    }
+                }
+            }
+        }
+
+        private SPContentType FindContentTypeByName(SPContentTypeCollection contentTypes, string contentTypeName)
+        {
+            return contentTypes.OfType<SPContentType>()
+                               .FirstOrDefault(ct => ct.Name.ToUpper() == contentTypeName.ToUpper());
+        }
+
+        protected SPContentType FindListContentType(SPList list, string contentTypeName)
+        {
+            return FindContentTypeByName(list.ContentTypes, contentTypeName);
+        }
+
+        protected SPListItem FindPageLayoutItem(SPWeb web, string pageLayoutFileName)
         {
             SPListItem currentPageLayoutItem = null;
 
@@ -159,8 +226,14 @@ namespace SPMeta2.SSOM.Standard.ModelHandlers
             return webPartPageName;
         }
 
-        public override void WithResolvingModelHost(object modelHost, DefinitionBase model, Type childModelType, Action<object> action)
+        public override void WithResolvingModelHost(ModelHostResolveContext modelHostContext)
         {
+            var modelHost = modelHostContext.ModelHost;
+            var model = modelHostContext.Model;
+            var childModelType = modelHostContext.ChildModelType;
+            var action = modelHostContext.Action;
+
+
             var listModelHost = modelHost.WithAssertAndCast<FolderModelHost>("modelHost", value => value.RequireNotNull());
 
             var folder = listModelHost.CurrentLibraryFolder;

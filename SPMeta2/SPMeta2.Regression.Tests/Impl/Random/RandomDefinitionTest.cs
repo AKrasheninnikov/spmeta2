@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SPMeta2.Definitions;
 using SPMeta2.Definitions.Base;
@@ -11,14 +12,12 @@ using SPMeta2.Definitions.ContentTypes;
 using SPMeta2.Definitions.Webparts;
 using SPMeta2.Models;
 using SPMeta2.Regression.Tests.Base;
-using SPMeta2.Regression.Tests.Common;
 using SPMeta2.Standard.Definitions;
 using SPMeta2.Standard.Definitions.Fields;
 using SPMeta2.Standard.Definitions.Taxonomy;
 using SPMeta2.Standard.Definitions.Webparts;
 using SPMeta2.Syntax.Default;
 using SPMeta2.Syntax.Default.Modern;
-using SPMeta2.Regression.Utils;
 using System.Reflection;
 using SPMeta2.Attributes;
 using SPMeta2.Utils;
@@ -27,19 +26,25 @@ using SPMeta2.Attributes.Regression;
 using SPMeta2.Syntax.Default.Extensions;
 using SPMeta2.Enumerations;
 using SPMeta2.Definitions.Fields;
-using SPMeta2.Regression.Exceptions;
 using System.IO;
+using SPMeta2.Standard.Definitions.DisplayTemplates;
 using SPMeta2.Validation.Services;
-using SPMeta2.Regression.Assertion;
+using SPMeta2.Exceptions;
 
 namespace SPMeta2.Regression.Tests.Impl.Random
 {
     [TestClass]
-    public class RandomDefinitionTest : SPMeta2RegresionEventsTestBase
+    public class RandomDefinitionTest : SPMeta2RegresionTestBase
     {
         public RandomDefinitionTest()
         {
-            this.ProvisionGenerationCount = 2;
+            EnablePropertyUpdateValidation = true;
+            PropertyUpdateGenerationCount = 2;
+
+            EnablePropertyNullableValidation = true;
+            PropertyNullableGenerationCount = 1;
+
+            RegressionService.ShowOnlyFalseResults = true;
         }
 
         #region common
@@ -65,11 +70,11 @@ namespace SPMeta2.Regression.Tests.Impl.Random
             var spMetaAssembly = typeof(FieldDefinition).Assembly;
             var spMetaStandardAssembly = typeof(TaxonomyFieldDefinition).Assembly;
 
-            var allDefinitions = ReflectionUtils.GetTypesFromAssembly<DefinitionBase>(spMetaAssembly)
-                                                .ToList();
-
-            allDefinitions.AddRange(ReflectionUtils.GetTypesFromAssembly<DefinitionBase>(spMetaStandardAssembly)
-                .ToList());
+            var allDefinitions = ReflectionUtils.GetTypesFromAssemblies<DefinitionBase>(new[]
+            {
+                spMetaAssembly,
+                spMetaStandardAssembly
+            });
 
             foreach (var def in allDefinitions)
             {
@@ -78,7 +83,7 @@ namespace SPMeta2.Regression.Tests.Impl.Random
 
             foreach (var definition in allDefinitions)
             {
-                var hasTestMethod = HasTestMethod("CanDeployRandom_", definition, methods);
+                var hasTestMethod = RegressionService.HasTestMethod("CanDeployRandom_", definition, methods);
 
                 Assert.IsTrue(hasTestMethod);
             }
@@ -90,21 +95,69 @@ namespace SPMeta2.Regression.Tests.Impl.Random
 
         [TestMethod]
         [TestCategory("Regression.Rnd.Farm")]
+        public void CanDeployRandom_DocumentParserDefinition()
+        {
+            WithExpectedUnsupportedCSOMnO365RunnerExceptions(() =>
+            {
+                TestRandomDefinition<DocumentParserDefinition>();
+            });
+        }
+
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Farm")]
         public void CanDeployRandom_FarmDefinition()
         {
-            WithExcpectedCSOMnO365RunnerExceptions(() =>
+            WithExpectedUnsupportedCSOMnO365RunnerExceptions(() =>
             {
                 TestRandomDefinition<FarmDefinition>();
             });
         }
 
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Farm")]
+        public void CanDeployRandom_DiagnosticsServiceBaseDefinition()
+        {
+            WithExpectedUnsupportedCSOMnO365RunnerExceptions(() =>
+            {
+                TestRandomDefinition<DiagnosticsServiceBaseDefinition>();
+            });
+        }
+
+
+
         [TestMethod]
         [TestCategory("Regression.Rnd.Farm")]
         public void CanDeployRandom_ManagedAccountDefinition()
         {
-            WithExcpectedCSOMnO365RunnerExceptions(() =>
+            WithExpectedUnsupportedCSOMnO365RunnerExceptions(() =>
             {
                 TestRandomDefinition<ManagedAccountDefinition>();
+            });
+        }
+
+        #endregion
+
+        #region secure store application
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.SecureStore")]
+        public void CanDeployRandom_SecureStoreApplicationDefinition()
+        {
+            WithExpectedUnsupportedCSOMnO365RunnerExceptions(() =>
+            {
+                TestRandomDefinition<SecureStoreApplicationDefinition>();
+            });
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.SecureStore")]
+        public void CanDeployRandom_TargetApplicationDefinition()
+        {
+            WithExpectedUnsupportedCSOMnO365RunnerExceptions(() =>
+            {
+                TestRandomDefinition<TargetApplicationDefinition>();
             });
         }
 
@@ -114,19 +167,64 @@ namespace SPMeta2.Regression.Tests.Impl.Random
 
         [TestMethod]
         [TestCategory("Regression.Rnd.WebApplication")]
+        public void CanDeployRandom_AlternateUrlDefinition()
+        {
+            WithExpectedUnsupportedCSOMnO365RunnerExceptions(() =>
+            {
+                TestRandomDefinition<AlternateUrlDefinition>();
+            });
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.WebApplication")]
+        public void CanDeployRandom_WebConfigModificationDefinition()
+        {
+            //var _oldProvisionGenerationCount = 0;
+
+            //try
+            //{
+            //    _oldProvisionGenerationCount = RegressionService.ProvisionGenerationCount;
+            //    RegressionService.ProvisionGenerationCount = 1;
+
+            WithExpectedUnsupportedCSOMnO365RunnerExceptions(() =>
+            {
+                TestRandomDefinition<WebConfigModificationDefinition>();
+            });
+            //}
+            //finally
+            //{
+            //    RegressionService.ProvisionGenerationCount = _oldProvisionGenerationCount;
+            //}
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.WebApplication")]
+        public void CanDeployRandom_ContentDatabaseDefinition()
+        {
+            WithExpectedUnsupportedCSOMnO365RunnerExceptions(() =>
+            {
+                TestRandomDefinition<ContentDatabaseDefinition>();
+            });
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.WebApplication")]
         public void CanDeployRandom_WebApplicationDefinition()
         {
-            WithExcpectedCSOMnO365RunnerExceptions(() =>
+            if (TestOptions.EnableWebApplicationDefinitionTest)
             {
-                TestRandomDefinition<WebApplicationDefinition>();
-            });
+                WithExpectedUnsupportedCSOMnO365RunnerExceptions(() =>
+                {
+                    TestRandomDefinition<WebApplicationDefinition>();
+                });
+            }
         }
 
         [TestMethod]
         [TestCategory("Regression.Rnd.WebApplication")]
         public void CanDeployRandom_JobDefinition()
         {
-            WithExcpectedCSOMnO365RunnerExceptions(() =>
+            WithExpectedUnsupportedCSOMnO365RunnerExceptions(() =>
             {
                 TestRandomDefinition<JobDefinition>();
             });
@@ -136,7 +234,7 @@ namespace SPMeta2.Regression.Tests.Impl.Random
         [TestCategory("Regression.Rnd.WebApplication")]
         public void CanDeployRandom_PrefixDefinition()
         {
-            WithExcpectedCSOMnO365RunnerExceptions(() =>
+            WithExpectedUnsupportedCSOMnO365RunnerExceptions(() =>
             {
                 TestRandomDefinition<PrefixDefinition>();
             });
@@ -145,6 +243,55 @@ namespace SPMeta2.Regression.Tests.Impl.Random
         #endregion
 
         #region site scope
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Site.CustomDocumentIdProvider")]
+        public void CanDeployRandom_CustomDocumentIdProviderDefinition()
+        {
+            WithExpectedUnsupportedCSOMnO365RunnerExceptions(() =>
+            {
+                TestRandomDefinition<CustomDocumentIdProviderDefinition>();
+            });
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Site.Audit")]
+        public void CanDeployRandom_AuditSettingsDefinition()
+        {
+            WithExpectedUnsupportedCSOMnO365RunnerExceptions(() =>
+            {
+                TestRandomDefinition<AuditSettingsDefinition>();
+            });
+        }
+
+        #region IRM
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Site.IRM")]
+        public void CanDeployRandom_InformationRightsManagementSettingsDefinition()
+        {
+            TestRandomDefinition<InformationRightsManagementSettingsDefinition>();
+        }
+
+        #endregion
+
+        #region search
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Site.Search")]
+        public void CanDeployRandom_SearchConfigurationDefinition()
+        {
+            TestRandomDefinition<SearchConfigurationDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Site.Search")]
+        public void CanDeployRandom_SearchResultDefinition()
+        {
+            TestRandomDefinition<SearchResultDefinition>();
+        }
+
+        #endregion
 
         #region fields
 
@@ -199,6 +346,13 @@ namespace SPMeta2.Regression.Tests.Impl.Random
 
         [TestMethod]
         [TestCategory("Regression.Rnd.Site.TypedFields")]
+        public void CanDeployRandom_DependentLookupFieldDefinition()
+        {
+            TestRandomDefinition<DependentLookupFieldDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Site.TypedFields")]
         public void CanDeployRandom_NoteFieldDefinition()
         {
             TestRandomDefinition<NoteFieldDefinition>();
@@ -239,14 +393,82 @@ namespace SPMeta2.Regression.Tests.Impl.Random
             TestRandomDefinition<GuidFieldDefinition>();
         }
 
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Site.TypedFields")]
+        public void CanDeployRandom_URLFieldDefinition()
+        {
+            TestRandomDefinition<URLFieldDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Site.TypedFields.Last")]
+        public void CanDeployRandom_GeolocationFieldDefinition()
+        {
+            TestRandomDefinition<GeolocationFieldDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Site.TypedFields.Last")]
+        public void CanDeployRandom_MediaFieldDefinition()
+        {
+            TestRandomDefinition<MediaFieldDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Site.TypedFields.Last")]
+        public void CanDeployRandom_SummaryLinkFieldDefinition()
+        {
+            TestRandomDefinition<SummaryLinkFieldDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Site.TypedFields.Last")]
+        public void CanDeployRandom_OutcomeChoiceFieldDefinition()
+        {
+            TestRandomDefinition<OutcomeChoiceFieldDefinition>();
+        }
+
         #endregion
 
+        #region publishing fields
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Site.PublishingFields.TypedFields")]
+        public void CanDeployRandom_HTMLFieldDefinition()
+        {
+            TestRandomDefinition<HTMLFieldDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Site.PublishingFields.TypedFields")]
+        public void CanDeployRandom_ImageFieldDefinition()
+        {
+            TestRandomDefinition<ImageFieldDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Site.PublishingFields.TypedFields")]
+        public void CanDeployRandom_LinkFieldDefinition()
+        {
+            TestRandomDefinition<LinkFieldDefinition>();
+        }
+
+        #endregion
+
+
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.EventReceivers")]
+        public void CanDeployRandom_EventReceiverDefinition()
+        {
+            TestRandomDefinition<EventReceiverDefinition>();
+        }
 
         [TestMethod]
         [TestCategory("Regression.Rnd.Site")]
         public void CanDeployRandom_SiteDefinition()
         {
-            WithExcpectedCSOMnO365RunnerExceptions(() =>
+            WithExpectedUnsupportedCSOMnO365RunnerExceptions(() =>
             {
                 TestRandomDefinition<SiteDefinition>();
             });
@@ -298,9 +520,19 @@ namespace SPMeta2.Regression.Tests.Impl.Random
         [TestCategory("Regression.Rnd.Site")]
         public void CanDeployRandom_FarmSolutionDefinition()
         {
-            WithExcpectedCSOMnO365RunnerExceptions(() =>
+            WithExpectedUnsupportedCSOMnO365RunnerExceptions(() =>
             {
                 TestRandomDefinition<FarmSolutionDefinition>();
+            });
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Site")]
+        public void CanDeployRandom_AudienceDefinition()
+        {
+            WithExpectedUnsupportedCSOMnO365RunnerExceptions(() =>
+            {
+                TestRandomDefinition<AudienceDefinition>();
             });
         }
 
@@ -346,9 +578,37 @@ namespace SPMeta2.Regression.Tests.Impl.Random
 
         [TestMethod]
         [TestCategory("Regression.Rnd.Web")]
+        public void CanDeployRandom_SearchSettingsDefinition()
+        {
+            TestRandomDefinition<SearchSettingsDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Web")]
+        public void CanDeployRandom_TreeViewSettingsDefinition()
+        {
+            TestRandomDefinition<TreeViewSettingsDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Web")]
+        public void CanDeployRandom_RegionalSettingsDefinition()
+        {
+            TestRandomDefinition<RegionalSettingsDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Web")]
         public void CanDeployRandom_WebDefinition()
         {
             TestRandomDefinition<WebDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Web")]
+        public void CanDeployRandom_RootWebDefinition()
+        {
+            TestRandomDefinition<RootWebDefinition>();
         }
 
         [TestMethod]
@@ -401,6 +661,20 @@ namespace SPMeta2.Regression.Tests.Impl.Random
             TestRandomDefinition<AppDefinition>();
         }
 
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Web")]
+        public void CanDeployRandom_SupportedUICultureDefinition()
+        {
+            TestRandomDefinition<SupportedUICultureDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Web")]
+        public void CanDeployRandom_PageLayoutAndSiteTemplateSettingsDefinition()
+        {
+            TestRandomDefinition<PageLayoutAndSiteTemplateSettingsDefinition>();
+        }
+
         #endregion
 
         #region list scope
@@ -414,6 +688,13 @@ namespace SPMeta2.Regression.Tests.Impl.Random
 
         [TestMethod]
         [TestCategory("Regression.Rnd.List")]
+        public void CanDeployRandom_ListItemFieldValuesDefinition()
+        {
+            TestRandomDefinition<ListItemFieldValuesDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.List")]
         public void CanDeployRandom_BreakRoleInheritanceDefinition()
         {
             TestRandomDefinition<BreakRoleInheritanceDefinition>();
@@ -421,9 +702,22 @@ namespace SPMeta2.Regression.Tests.Impl.Random
 
         [TestMethod]
         [TestCategory("Regression.Rnd.List")]
+        public void CanDeployRandom_ResetRoleInheritanceDefinition()
+        {
+            TestRandomDefinition<ResetRoleInheritanceDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.List")]
         public void CanDeployRandom_ContentTypeLinkDefinition()
         {
-            TestRandomDefinition<ContentTypeLinkDefinition>();
+            // preserver list 'EnableContentTypes' from changes
+            WithDisabledPropertyUpdateValidation(() =>
+            {
+                TestRandomDefinition<ContentTypeLinkDefinition>();
+            });
+
+
         }
 
         [TestMethod]
@@ -465,9 +759,9 @@ namespace SPMeta2.Regression.Tests.Impl.Random
         [TestCategory("Regression.Rnd.List")]
         public void CanDeployRandom_ListViewDefinition()
         {
-            TestRandomDefinition<ListViewDefinition>(); 
+            TestRandomDefinition<ListViewDefinition>();
         }
-        
+
         [TestMethod]
         [TestCategory("Regression.Rnd.List.ContentTypes")]
         public void CanDeployRandom_UniqueContentTypeOrderDefinition()
@@ -497,7 +791,76 @@ namespace SPMeta2.Regression.Tests.Impl.Random
 
         #endregion
 
+
+        #region wb part gallery
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.WebPartGallery")]
+        public void CanDeployRandom_WebPartGalleryFileDefinition()
+        {
+            TestRandomDefinition<WebPartGalleryFileDefinition>();
+        }
+
+        #endregion
+
+        #region master page gallery
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.MasterPageGallery")]
+        public void CanDeployRandom_ItemDisplayTemplateDefinition()
+        {
+            TestRandomDefinition<ItemDisplayTemplateDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.MasterPageGallery")]
+        public void CanDeployRandom_FilterDisplayTemplateDefinition()
+        {
+            TestRandomDefinition<FilterDisplayTemplateDefinition>();
+        }
+
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.MasterPageGallery")]
+        public void CanDeployRandom_ControlDisplayTemplateDefinition()
+        {
+            TestRandomDefinition<ControlDisplayTemplateDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.MasterPageGallery")]
+        public void CanDeployRandom_JavaScriptDisplayTemplateDefinition()
+        {
+            TestRandomDefinition<JavaScriptDisplayTemplateDefinition>();
+        }
+
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.MasterPageGallery")]
+        public void CanDeployRandom_MasterPageDefinition()
+        {
+            TestRandomDefinition<MasterPageDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.MasterPageGallery")]
+        public void CanDeployRandom_MasterPagePreviewDefinition()
+        {
+            TestRandomDefinition<MasterPagePreviewDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.MasterPageGallery")]
+        public void CanDeployRandom_PublishingPageLayoutDefinition()
+        {
+            TestRandomDefinition<PublishingPageLayoutDefinition>();
+        }
+
+        #endregion
+
         #region pages scope
+
+
 
         [TestMethod]
         [TestCategory("Regression.Rnd.Pages")]
@@ -505,6 +868,14 @@ namespace SPMeta2.Regression.Tests.Impl.Random
         {
             TestRandomDefinition<PublishingPageDefinition>();
         }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Pages")]
+        public void CanDeployRandom_DeleteWebPartsDefinition()
+        {
+            TestRandomDefinition<DeleteWebPartsDefinition>();
+        }
+
 
         [TestMethod]
         [TestCategory("Regression.Rnd.Pages")]
@@ -568,7 +939,25 @@ namespace SPMeta2.Regression.Tests.Impl.Random
         [TestCategory("Regression.Rnd.Apps")]
         public void CanDeployRandom_AppPrincipalDefinition()
         {
-            TestRandomDefinition<AppPrincipalDefinition>();
+            WithSPMeta2NotSupportedExceptions(() =>
+            {
+                TestRandomDefinition<AppPrincipalDefinition>();
+            });
+
+        }
+
+        #endregion
+
+        #region search
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Search")]
+        public void CanDeployRandom_ManagedPropertyDefinition()
+        {
+            WithExpectedUnsupportedCSOMnO365RunnerExceptions(() =>
+            {
+                TestRandomDefinition<ManagedPropertyDefinition>();
+            });
         }
 
         #endregion
@@ -577,9 +966,37 @@ namespace SPMeta2.Regression.Tests.Impl.Random
 
         [TestMethod]
         [TestCategory("Regression.Rnd.Webparts")]
+        public void CanDeployRandom_SummaryLinkWebPartDefinition()
+        {
+            TestRandomDefinition<SummaryLinkWebPartDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Webparts")]
+        public void CanDeployRandom_ContentBySearchWebPartDefinition()
+        {
+            TestRandomDefinition<ContentBySearchWebPartDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Webparts")]
+        public void CanDeployRandom_RefinementScriptWebPartDefinition()
+        {
+            TestRandomDefinition<RefinementScriptWebPartDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Webparts")]
         public void CanDeployRandom_ContentByQueryWebPartDefinition()
         {
             TestRandomDefinition<ContentByQueryWebPartDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Webparts")]
+        public void CanDeployRandom_ResultScriptWebPartDefinition()
+        {
+            TestRandomDefinition<ResultScriptWebPartDefinition>();
         }
 
         [TestMethod]
@@ -612,11 +1029,38 @@ namespace SPMeta2.Regression.Tests.Impl.Random
 
         [TestMethod]
         [TestCategory("Regression.Rnd.Webparts")]
-        public void CanDeployRandom_ContactFieldControlDefinition()
+        public void CanDeployRandom_UserCodeWebPartDefinition()
         {
-            TestRandomDefinition<ContactFieldControlDefinition>();
+            WithDisabledPropertyUpdateValidation(() =>
+            {
+                WithExcpectedExceptions(new[]{
+                    typeof(SPMeta2NotSupportedException)
+                }, () =>
+                {
+                    TestRandomDefinition<UserCodeWebPartDefinition>();
+                });
+
+
+            });
         }
 
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Webparts")]
+        public void CanDeployRandom_ContactFieldControlDefinition()
+        {
+            WithDisabledPropertyUpdateValidation(() =>
+            {
+                TestRandomDefinition<ContactFieldControlDefinition>();
+            });
+        }
+
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Webparts")]
+        public void CanDeployRandom_SilverlightWebPartDefinition()
+        {
+            TestRandomDefinition<SilverlightWebPartDefinition>();
+        }
 
         [TestMethod]
         [TestCategory("Regression.Rnd.Webparts")]
@@ -630,6 +1074,20 @@ namespace SPMeta2.Regression.Tests.Impl.Random
         public void CanDeployRandom_XsltListViewWebPartDefinition()
         {
             TestRandomDefinition<XsltListViewWebPartDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Webparts")]
+        public void CanDeployRandom_PageViewerWebPartDefinition()
+        {
+            TestRandomDefinition<PageViewerWebPartDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Webparts")]
+        public void CanDeployRandom_ProjectSummaryWebPartDefinition()
+        {
+            TestRandomDefinition<ProjectSummaryWebPartDefinition>();
         }
 
         #endregion
@@ -646,6 +1104,13 @@ namespace SPMeta2.Regression.Tests.Impl.Random
         #endregion
 
         #region taxonomy
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.Taxonomy")]
+        public void CanDeployRandom_TaxonomyTermLabelDefinition()
+        {
+            TestRandomDefinition<TaxonomyTermLabelDefinition>();
+        }
 
         [TestMethod]
         [TestCategory("Regression.Rnd.Taxonomy")]
@@ -677,7 +1142,6 @@ namespace SPMeta2.Regression.Tests.Impl.Random
 
         #endregion
 
-
         #region web navigation
 
         [TestMethod]
@@ -693,6 +1157,43 @@ namespace SPMeta2.Regression.Tests.Impl.Random
         public void CanDeployRandom_WebNavigationSettingsDefinition()
         {
             TestRandomDefinition<WebNavigationSettingsDefinition>();
+        }
+
+        #endregion
+
+        #region composed looks
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.ComposedLooks")]
+        public void CanDeployRandom_ComposedLookItemDefinition()
+        {
+            TestRandomDefinition<ComposedLookItemDefinition>();
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.ComposedLooks")]
+        public void CanDeployRandom_ComposedLookItemLinkDefinition()
+        {
+            TestRandomDefinition<ComposedLookItemLinkDefinition>();
+        }
+
+        #endregion
+
+        #region reusable content
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.ReusableItems")]
+        public void CanDeployRandom_ReusableTextItemDefinition()
+        {
+            TestRandomDefinition<ReusableTextItemDefinition>();
+        }
+
+
+        [TestMethod]
+        [TestCategory("Regression.Rnd.ReusableItems")]
+        public void CanDeployRandom_ReusableHTMLItemDefinition()
+        {
+            TestRandomDefinition<ReusableHTMLItemDefinition>();
         }
 
         #endregion

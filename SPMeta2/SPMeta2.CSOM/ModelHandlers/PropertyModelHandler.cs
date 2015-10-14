@@ -55,8 +55,19 @@ namespace SPMeta2.CSOM.ModelHandlers
             }
             else if (modelHost is FolderModelHost)
             {
-                result = (modelHost as FolderModelHost).CurrentLibraryFolder.Properties;
-                context = (modelHost as FolderModelHost).CurrentLibraryFolder.Context;
+                var folderModelHost = modelHost as FolderModelHost;
+
+                if (folderModelHost.CurrentList.BaseType == BaseType.DocumentLibrary)
+                //if (folderModelHost.CurrentListFolder != null)
+                {
+                    result = folderModelHost.CurrentListFolder.Properties;
+                    context = folderModelHost.CurrentListFolder.Context;
+                }
+                else
+                {
+                    result = folderModelHost.CurrentListItem.Folder.Properties;
+                    context = folderModelHost.CurrentListItem.Context;
+                }
             }
             else if (modelHost is ListItem)
             {

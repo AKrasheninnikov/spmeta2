@@ -7,7 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
 using SPMeta2.Utils;
 using SPMeta2.Exceptions;
 using SPMeta2.Common;
@@ -77,26 +77,7 @@ namespace SPMeta2.SSOM.ModelHandlers
 
         protected SPSecurableObject ExtractSecurableObject(object modelHost)
         {
-            if (modelHost is SPSecurableObject)
-                return modelHost as SPSecurableObject;
-
-            if (modelHost is SiteModelHost)
-                return (modelHost as SiteModelHost).HostSite.RootWeb;
-
-            if (modelHost is WebModelHost)
-                return (modelHost as WebModelHost).HostWeb;
-
-            if (modelHost is ListModelHost)
-                return (modelHost as ListModelHost).HostList;
-
-            if (modelHost is FolderModelHost)
-                return (modelHost as FolderModelHost).CurrentLibraryFolder.Item;
-
-            if (modelHost is WebpartPageModelHost)
-                return (modelHost as WebpartPageModelHost).PageListItem;
-
-            throw new SPMeta2NotImplementedException(string.Format("Model host of type:[{0}] is not supported by SecurityGroupLinkModelHandler yet.",
-                modelHost.GetType()));
+            return SecurableHelper.ExtractSecurableObject(modelHost);
         }
     }
 }

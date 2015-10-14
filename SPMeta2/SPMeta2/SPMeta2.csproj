@@ -43,14 +43,72 @@
   <PropertyGroup>
     <AssemblyOriginatorKeyFile>SPMeta2.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug35|AnyCPU'">
+    <OutputPath>bin\Debug35\</OutputPath>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+    <DocumentationFile>bin\Debug35\SPMeta2.XML</DocumentationFile>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug40|AnyCPU'">
+    <OutputPath>bin\Debug40\</OutputPath>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+    <DocumentationFile>bin\Debug40\SPMeta2.XML</DocumentationFile>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug45|AnyCPU'">
+    <OutputPath>bin\Debug45\</OutputPath>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+    <DocumentationFile>bin\Debug45\SPMeta2.XML</DocumentationFile>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+    <Reference Condition="'$(spRuntime)'=='14' Or '$(Configuration)'=='Debug35'" Include="System.ServiceModel.Web, Version=3.5.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35">
+    </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Attributes\Capabilities\CapabilityAttribute.cs" />
+    <Compile Include="Attributes\Capabilities\HashCodePartCapabilityAttribute.cs" />
+    <Compile Include="Attributes\Capabilities\ParentHostCapabilityAttribute.cs" />
+    <Compile Include="Attributes\Capabilities\SiteCollectionTokenCapabilityAttribute.cs" />
+    <Compile Include="Attributes\Capabilities\TokenCapabilityAttribute.cs" />
+    <Compile Include="Attributes\Capabilities\VersionPropertyCapabilityAttribute.cs" />
+    <Compile Include="Attributes\Capabilities\WebTokenCapabilityAttribute.cs" />
+    <Compile Include="Attributes\Capabilities\CamlPropertyCapabilityAttribute.cs" />
+    <Compile Include="Attributes\Capabilities\XsltPropertyCapabilityAttribute.cs" />
+    <Compile Include="Attributes\Capabilities\XmlPropertyCapabilityAttribute.cs" />
+    <Compile Include="Attributes\Identity\IdentityKeyAttribute.cs" />
+    <Compile Include="Attributes\Identity\SingletonIdentityAttribute.cs" />
+    <Compile Include="Attributes\Regression\ExpectArrayExtensionMethod.cs" />
+    <Compile Include="Attributes\Regression\ExpectManyInstances.cs" />
+    <Compile Include="Attributes\Regression\ExpectNullable.cs" />
+    <Compile Include="Attributes\Regression\ExpectRequired.cs" />
+    <Compile Include="Attributes\Regression\ExpectWithExtensionMethod.cs" />
+    <Compile Include="Attributes\Regression\ExpectAddHostExtensionMethod.cs" />
     <Compile Include="Attributes\Regression\ExpectUpdate.cs" />
     <Compile Include="Attributes\Regression\ExpectValidation.cs" />
     <Compile Include="Attributes\Regression\ParentHostAttribute.cs" />
@@ -58,15 +116,41 @@
     <Compile Include="Attributes\SPObjectTypeAttribute.cs" />
     <Compile Include="BuiltInDefinitions\BuiltInFieldDefinitions.cs" />
     <Compile Include="BuiltInDefinitions\BuiltInFolderDefinitions.cs" />
+    <Compile Include="BuiltInDefinitions\BuiltInListViewDefinitions.cs" />
     <Compile Include="BuiltInDefinitions\BuiltInListDefinitions.cs" />
+    <Compile Include="BuiltInDefinitions\BuiltInMasterPageDefinitions.cs" />
     <Compile Include="BuiltInDefinitions\BuiltInSecurityGroupDefinitions.cs" />
+    <Compile Include="BuiltInDefinitions\BuiltInWikiPages.cs" />
+    <Compile Include="Common\DefaultDefinitionRelationship.cs" />
+    <Compile Include="Common\KeyNameValue.cs" />
     <Compile Include="Common\ModelHostResolveContext.cs" />
+    <Compile Include="Definitions\AlternateUrlDefinition.cs" />
     <Compile Include="Definitions\AppDefinition.cs" />
+    <Compile Include="Definitions\AuditSettingsDefinition.cs" />
+    <Compile Include="Definitions\Base\ContentPageDefinitionBase.cs" />
+    <Compile Include="Definitions\ComposedLookItemDefinition.cs" />
+    <Compile Include="Definitions\ComposedLookItemLinkDefinition.cs" />
+    <Compile Include="Definitions\ContentDatabaseDefinition.cs" />
+    <Compile Include="Definitions\DeleteWebPartsDefinition.cs" />
+    <Compile Include="Definitions\Fields\DependentLookupFieldDefinition.cs" />
+    <Compile Include="Definitions\DocumentParserDefinition.cs" />
+    <Compile Include="Definitions\Fields\OutcomeChoiceFieldDefinition.cs" />
+    <Compile Include="Definitions\Fields\GeolocationFieldDefinition.cs" />
+    <Compile Include="Definitions\ListItemFieldValuesDefinition.cs" />
+    <Compile Include="Definitions\MasterPagePreviewDefinition.cs" />
+    <Compile Include="Definitions\MasterPageDefinition.cs" />
+    <Compile Include="Definitions\ResetRoleInheritanceDefinition.cs" />
+    <Compile Include="Definitions\SupportedUICultureDefinition.cs" />
+    <Compile Include="Definitions\TreeViewSettings.cs" />
+    <Compile Include="Definitions\RootWebDefinition.cs" />
+    <Compile Include="Definitions\DiagnosticsServiceBaseDefinition.cs" />
+    <Compile Include="Definitions\EventReceiverDefinition.cs" />
     <Compile Include="Definitions\Fields\CalculatedFieldDefinition.cs" />
     <Compile Include="Definitions\Fields\NumberFieldDefinition.cs" />
     <Compile Include="Definitions\Fields\GuidFieldDefinition.cs" />
     <Compile Include="Definitions\Fields\ComputedFieldDefinition.cs" />
     <Compile Include="Definitions\Fields\LookupFieldDefinition.cs" />
+    <Compile Include="Definitions\Fields\URLFieldDefinition.cs" />
     <Compile Include="Definitions\Fields\UserFieldDefinition.cs" />
     <Compile Include="Definitions\Fields\DateTimeFieldDefinition.cs" />
     <Compile Include="Definitions\Fields\BooleanFieldDefinition.cs" />
@@ -75,15 +159,41 @@
     <Compile Include="Definitions\Fields\NoteFieldDefinition.cs" />
     <Compile Include="Definitions\Fields\CurrencyFieldDefinition.cs" />
     <Compile Include="Definitions\Fields\TextFieldDefinition.cs" />
+    <Compile Include="Definitions\InformationRightsManagementSettingsDefinition.cs" />
     <Compile Include="Definitions\MasterPageSettings.cs" />
+    <Compile Include="Definitions\RegionalSettingsDefinition.cs" />
+    <Compile Include="Definitions\SecureStoreApplicationDefinition.cs" />
+    <Compile Include="Definitions\TargetApplicationDefinition.cs" />
+    <Compile Include="Definitions\WebConfigModificationDefinition.cs" />
+    <Compile Include="Definitions\Webparts\PageViewerWebPartDefinition.cs" />
+    <Compile Include="Definitions\Webparts\SilverlightWebPartDefinition.cs" />
+    <Compile Include="Definitions\Webparts\UserCodeWebPartDefinition.cs" />
+    <Compile Include="Definitions\Webparts\WebPartGalleryFileDefinition.cs" />
+    <Compile Include="Enumerations\BuiltInAddFieldOptions.cs" />
+    <Compile Include="Enumerations\BuiltInAuditMaskType.cs" />
     <Compile Include="Enumerations\BuiltInBasePermissions.cs" />
+    <Compile Include="Enumerations\BuiltInComposedLookItemNames.cs" />
+    <Compile Include="Enumerations\BuiltInContentTypeNames.cs" />
     <Compile Include="Enumerations\BuiltInDateTimeFieldFriendlyFormatType.cs" />
     <Compile Include="Enumerations\BuiltInDateTimeFieldFormatType.cs" />
     <Compile Include="Enumerations\BuiltInCalendarType.cs" />
+    <Compile Include="Enumerations\BuiltInDraftVisibilityType.cs" />
+    <Compile Include="Enumerations\BuiltInEventReceiverSynchronization.cs" />
+    <Compile Include="Enumerations\BuiltInEventReceiverType.cs" />
+    <Compile Include="Enumerations\BuiltInExportMode.cs" />
     <Compile Include="Enumerations\BuiltInFieldUserSelectionMode.cs" />
     <Compile Include="Enumerations\BuiltInListTemplates.cs" />
     <Compile Include="Enumerations\BuiltInFieldAttributes.cs" />
     <Compile Include="Enumerations\BuiltInNumberFormatTypes.cs" />
+    <Compile Include="Enumerations\BuiltInPartChromeState.cs" />
+    <Compile Include="Enumerations\BuiltInPartChromeType.cs" />
+    <Compile Include="Enumerations\BuiltInRelationshipDeleteBehavior.cs" />
+    <Compile Include="Enumerations\BuiltInSecureStoreCredentialType.cs" />
+    <Compile Include="Enumerations\BuiltInTargetApplicationType.cs" />
+    <Compile Include="Enumerations\BuiltInUrlFieldFormatType.cs" />
+    <Compile Include="Enumerations\BuiltInUrlZone.cs" />
+    <Compile Include="Enumerations\BuiltInViewType.cs" />
+    <Compile Include="Enumerations\BuiltInWebConfigModificationType.cs" />
     <Compile Include="Enumerations\ListTemplate.cs" />
     <Compile Include="Common\DefaultModelWeigh.cs" />
     <Compile Include="Common\ModelEventType.cs" />
@@ -170,7 +280,9 @@
     <Compile Include="Events\ModelNodeProcessingEventArgs.cs" />
     <Compile Include="Events\OnModelNodeProcessingEventArgs.cs" />
     <Compile Include="Exceptions\SPMeta2Exception.cs" />
+    <Compile Include="Exceptions\SPMeta2InvalidDefinitionPropertyException.cs" />
     <Compile Include="Exceptions\SPMeta2ModelDeploymentException.cs" />
+    <Compile Include="Exceptions\SPMeta2ModelValidationException.cs" />
     <Compile Include="Exceptions\SPMeta2NotSupportedException.cs" />
     <Compile Include="Exceptions\SPMeta2NotImplementedException.cs" />
     <Compile Include="Exceptions\SPMeta2UnsupportedModelHost.cs" />
@@ -180,28 +292,239 @@
     <Compile Include="ModelHandlers\ModelHandlerBase.cs" />
     <Compile Include="ModelHosts\ModelHostBase.cs" />
     <Compile Include="Models\ModelNode.cs" />
+    <Compile Include="Models\TypedModelNode.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Services\DefaultPreDeploymentTreeTraverseServiceBase.cs" />
+    <Compile Include="Services\DeploymentServiceBase.cs" />
+    <Compile Include="Services\HashCodeServiceBase.cs" />
+    <Compile Include="Services\Impl\DefaultDefinitionRelationshipService.cs" />
+    <Compile Include="Services\Impl\DefaultVersionBasedPropertiesValidationService.cs" />
+    <Compile Include="Services\Impl\DefaultXmlBasedPropertiesValidationService.cs" />
+    <Compile Include="Services\Impl\DefaultRequiredPropertiesValidationService.cs" />
+    <Compile Include="Services\Impl\DefaultWebPartChromeTypesConvertService.cs" />
+    <Compile Include="Services\Impl\DefaultXMLSerializationService.cs" />
+    <Compile Include="Services\Impl\DefaultJSONSerializationService.cs" />
+    <Compile Include="Services\Impl\DefaultModelTreeTraverseService.cs" />
     <Compile Include="Services\Impl\DefaultModelWeighService.cs" />
+    <Compile Include="Services\LocalizationServiceBase.cs" />
     <Compile Include="Services\LogEventId.cs" />
+    <Compile Include="Services\DefinitionRelationshipServiceBase.cs" />
     <Compile Include="Services\ModelServiceBase.cs" />
+    <Compile Include="Services\ModelTreeTraverseServiceBase.cs" />
     <Compile Include="Services\ModelWeighServiceBase.cs" />
     <Compile Include="Services\Impl\TraceSourceService.cs" />
+    <Compile Include="Services\PostDeploymentServiceBase.cs" />
+    <Compile Include="Services\PreDeploymentServiceBase.cs" />
+    <Compile Include="Services\ProvisionServiceBase.cs" />
+    <Compile Include="Services\SerializationServiceBase.cs" />
+    <Compile Include="Services\ServiceModelHandlers\DefaultRequiredPropertiesModelHandler.cs" />
+    <Compile Include="Services\ServiceModelHandlers\DefaultVersionBasedPropertiesModelHandler.cs" />
+    <Compile Include="Services\ServiceModelHandlers\DefaultXmlBasedPropertiesModelHandler.cs" />
+    <Compile Include="Services\ServiceModelHandlers\ServiceModelHandlerBase.cs" />
+    <Compile Include="Services\SPMetaServiceBase.cs" />
+    <Compile Include="Services\TokenReplacementServiceBase.cs" />
     <Compile Include="Services\TraceServiceBase.cs" />
+    <Compile Include="Services\WebPartChromeTypesConvertService.cs" />
     <Compile Include="Services\Webparts\WebPartParameterBindingsOptions.cs" />
     <Compile Include="ServiceContainer.cs" />
+    <Compile Include="Syntax\Default\AlternateUrlDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\AppDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\AppPrincipalDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\AuditSettingsSyntax.cs" />
+    <Compile Include="Syntax\Default\Extensions\DefinitionExtensions.cs" />
+    <Compile Include="Syntax\Default\Fields\BooleanFieldDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\BreakRoleInheritanceDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Fields\BusinessDataFieldDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Fields\CalculatedFieldDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Fields\ChoiceFieldDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IListItemModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\ISearchSettingsHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\ISecurityRoleLinkHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\ISecurityGroupHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\ISP2013WorkflowSubscriptionHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\ITargetApplicationHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\ISecureStoreApplicationHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\ISecureStoreApplicationModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IQuickLaunchNavigationNodeHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\Taxonomy\ITaxonomyTermModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\Taxonomy\ITaxonomyTermHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\Taxonomy\ITaxonomyTermGroupHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\Taxonomy\ITaxonomyTermSetHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\Taxonomy\ITaxonomyTermStoreHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IJobHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\ITopNavigationNodeHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IListModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IContentTypeModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IFarmModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IContentTypeLinkHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IContentTypeFieldLinkHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IFeatureHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IListHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IModuleFileHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\ISiteModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\ISiteHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IListItemHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IFolderHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IPropertyHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IEventReceiverHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IManagedPropertyHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IAuditSettingsHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IWebApplicationModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IWebModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IUserCustomActionHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IWelcomePageHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IWebHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IWebApplicationHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IWebpartHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\ISecurableObjectHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IContentTypeHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IFieldHostModelNode.cs" />
+    <Compile Include="Syntax\Default\Interfaces\IHostModelNode.cs" />
+    <Compile Include="Syntax\Default\SupportedUICultureDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Webparts\ClientWebPartDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\ComposedLookItemDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\ComposedLookItemLinkDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Fields\ComputedFieldDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\ContentDatabaseDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Webparts\ContentEditorWebPartDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\ContentTypeDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\ContentTypeFieldLinkDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\ContentTypeLinkDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Fields\CurrencyFieldDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Fields\DateTimeFieldDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\DeleteWebPartsDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Fields\DependentLookupFieldDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\DiagnosticsServiceBaseDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\DocumentParserSyntax.cs" />
+    <Compile Include="Syntax\Default\EventReceiverDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Extensions\ModelNodeExtensions.cs" />
+    <Compile Include="Syntax\Default\Extensions\TypedModelNodeExtensions.cs" />
+    <Compile Include="Syntax\Default\FarmDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\FarmSolutionDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\FeatureDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\FieldDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\FieldLinkDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\FolderDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Fields\GeolocationFieldDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Fields\GuidFieldDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\ContentTypes\HideContentTypeFieldLinksDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\ContentTypes\HideContentTypeLinksDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\InformationRightsManagementSettingsDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\JobDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\ListDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\ListFieldLinkDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\ListItemDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\ListItemFieldValueDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\ListItemFieldValuesDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\ListViewDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Webparts\ListViewWebPartDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Fields\LookupFieldDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\ManagedAccountDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\MasterPageDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\MasterPagePreviewDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\MasterPageSettingsDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\ModelWithNamespaces.cs" />
+    <Compile Include="Syntax\Default\Modern\ModernSyntax.cs" />
+    <Compile Include="Syntax\Default\ModuleFileDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Fields\MultiChoiceFieldDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Fields\NoteFieldDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Fields\NumberFieldDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Fields\OutcomeChoiceFieldDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\PrefixDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\PropertyDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\QuickLaunchNavigationNodeDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\RegionalSettingsDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\ContentTypes\RemoveContentTypeFieldLinksDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\ContentTypes\RemoveContentTypeLinksDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\ResetRoleInheritanceDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\RootWebDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\SandboxSolutionDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Webparts\ScriptEditorWebPartDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\SecureStoreApplicationDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\SecurityGroupDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\SecurityGroupLinkDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\SecurityRoleDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\SecurityRoleLinkDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Webparts\SilverlightWebPartDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\SiteDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\SP2013WorkflowDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\SP2013WorkflowSubscriptionDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\SPMeta2Model.cs" />
+    <Compile Include="Syntax\Default\TargetApplicationDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Fields\TextFieldDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\TopNavigationSyntax.cs" />
+    <Compile Include="Syntax\Default\TreeViewSettingsDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Webparts\PageViewerWebPartDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\ContentTypes\UniqueContentTypeFieldsOrderDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\ContentTypes\UniqueContentTypeOrderDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Fields\URLFieldDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Webparts\UserCodeWebPartDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\UserCustomActionSyntax.cs" />
+    <Compile Include="Syntax\Default\Fields\UserFieldDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Utils\ModuleFileUtils.cs" />
+    <Compile Include="Syntax\Default\WebApplicationDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\WebConfigModificationDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\WebDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\WebPartDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\WebPartGalleryFileDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\WebPartPageDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\WelcomePageDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\WikiPageDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\Webparts\XsltListViewWebPartDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Extended\ListDefinitionSyntax.cs" />
+    <Compile Include="Utils\CamlQueryUtils.cs" />
     <Compile Include="Utils\ConvertUtils.cs" />
+    <Compile Include="Utils\PageViewerWebPartXmlExtensions.cs" />
     <Compile Include="Utils\ListViewWebPartXmlExtensions.cs" />
     <Compile Include="Utils\ContentEditorWebPartXmlExtensions.cs" />
     <Compile Include="Utils\ReflectionUtils.cs" />
     <Compile Include="Utils\ResourceUtils.cs" />
     <Compile Include="Utils\ToStringResult.cs" />
+    <Compile Include="Utils\UrlUtility.cs" />
     <Compile Include="Utils\ValidationUtils.cs" />
     <Compile Include="Utils\ValidationValueContext.cs" />
     <Compile Include="Utils\WebpartXmlExtensions.cs" />
     <Compile Include="Utils\XElementHelper.cs" />
     <Compile Include="Utils\XmlSerializerUtils.cs" />
+    <Compile Include="Validation\Common\ValidationResult.cs" />
+    <Compile Include="Validation\Common\ValidatorBase.cs" />
+    <Compile Include="Validation\Extensions\ValidationExtensions.cs" />
+    <Compile Include="Validation\Services\AssertService.cs" />
+    <Compile Include="Validation\Services\ModelValidationService.cs" />
+    <Compile Include="Validation\Services\ValidationPreDeploymentService.cs" />
+    <Compile Include="Validation\Validators\Collections\CollectionValidatorBase.cs" />
+    <Compile Include="Validation\Validators\Collections\ContentTypeCollectionValidator.cs" />
+    <Compile Include="Validation\Validators\Collections\ContentTypeFieldLinkCollectionValidator.cs" />
+    <Compile Include="Validation\Validators\Collections\FeatureCollectionValidator.cs" />
+    <Compile Include="Validation\Validators\Collections\FieldCollectionValidator.cs" />
+    <Compile Include="Validation\Validators\Collections\FolderCollectionValidator.cs" />
+    <Compile Include="Validation\Validators\Collections\ListCollectionValidator.cs" />
+    <Compile Include="Validation\Validators\Collections\SecurityGroupCollectionValidator.cs" />
+    <Compile Include="Validation\Validators\Collections\SecurityRoleCollectionValidator.cs" />
+    <Compile Include="Validation\Validators\Collections\WebpartCollectionValidator.cs" />
+    <Compile Include="Validation\Validators\Collections\WebpartPageCollectionValidator.cs" />
+    <Compile Include="Validation\Validators\Collections\WikiPageCollectionValidator.cs" />
+    <Compile Include="Validation\Validators\Definitions\ContentTypeDefinitionValidator.cs" />
+    <Compile Include="Validation\Validators\Definitions\ContentTypeLinkDefinitionValidator.cs" />
+    <Compile Include="Validation\Validators\Definitions\DefinitionBaseValidator.cs" />
+    <Compile Include="Validation\Validators\Definitions\FieldDefinitionValidator.cs" />
+    <Compile Include="Validation\Validators\Definitions\FolderDefinitionValidator.cs" />
+    <Compile Include="Validation\Validators\Definitions\ListDefinitionValidator.cs" />
+    <Compile Include="Validation\Validators\Definitions\QuickLaunchNavigationNodeDefinitionValidator.cs" />
+    <Compile Include="Validation\Validators\Definitions\SecurityGroupDefinitionDefinitionValidator.cs" />
+    <Compile Include="Validation\Validators\Definitions\SecurityRoleDefinitionValidator.cs" />
+    <Compile Include="Validation\Validators\DefinitionValidatorBase.cs" />
+    <Compile Include="Validation\Validators\Relationships\ContentTypeDefinitionModelNodeValidator.cs" />
+    <Compile Include="Validation\Validators\Relationships\FieldDefinitionModelNodeValidator.cs" />
+    <Compile Include="Validation\Validators\Relationships\FolderDefinitionModelNodeValidator.cs" />
+    <Compile Include="Validation\Validators\Relationships\ListDefinitionModelNodeValidator.cs" />
+    <Compile Include="Validation\Validators\Relationships\RelationshipValidatorBase.cs" />
+    <Compile Include="Validation\Validators\Relationships\SiteDefinitionModelNodeValidator.cs" />
+    <Compile Include="Validation\Validators\Relationships\WebDefinitionModelNodeValidator.cs" />
+    <Compile Include="Validation\Validators\Relationships\WebpartDefinitionModelNodeValidator.cs" />
+    <Compile Include="Validation\Validators\RelationshipValidatorBase.cs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <None Include="Properties\SPMeta2.pfx" />
     <None Include="SPMeta2.snk" />
@@ -213,6 +536,17 @@
     <EmbeddedResource Include="Templates\Webparts\ContactFieldControl.webpart" />
     <EmbeddedResource Include="Templates\Webparts\ClientWebPart.webpart" />
     <EmbeddedResource Include="Templates\Webparts\ContentByQueryWebPart.webpart" />
+    <EmbeddedResource Include="Templates\Webparts\SummaryLinkWebPart.webpart" />
+    <EmbeddedResource Include="Templates\Webparts\UserCodeWebPart.webpart" />
+    <EmbeddedResource Include="Templates\Webparts\ResultScriptWebPart.webpart" />
+    <EmbeddedResource Include="Templates\Webparts\ContentBySearchWebPart.webpart" />
+    <EmbeddedResource Include="Templates\Webparts\PageViewerWebPart.webpart" />
+    <EmbeddedResource Include="Templates\Webparts\ProjectSummaryWebPart.webpart" />
+    <EmbeddedResource Include="Templates\Webparts\SilverlightWebPart.webpart" />
+    <EmbeddedResource Include="Templates\Webparts\RefinementScriptWebPart.webpart" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Validation\Impl\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

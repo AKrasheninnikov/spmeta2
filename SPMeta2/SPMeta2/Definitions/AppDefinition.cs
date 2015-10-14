@@ -2,11 +2,14 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
 using SPMeta2.Attributes;
+using SPMeta2.Attributes.Identity;
 using SPMeta2.Attributes.Regression;
 using SPMeta2.Definitions.Base;
 using SPMeta2.Utils;
+using System.Runtime.Serialization;
+using SPMeta2.Attributes.Capabilities;
 
 namespace SPMeta2.Definitions
 {
@@ -19,6 +22,16 @@ namespace SPMeta2.Definitions
 
     [DefaultRootHostAttribute(typeof(SiteDefinition))]
     [DefaultParentHost(typeof(WebDefinition))]
+
+    [Serializable]
+    [DataContract]
+
+    [ExpectWithExtensionMethod]
+    [ExpectArrayExtensionMethod]
+
+    [ExpectManyInstances]
+
+    [ParentHostCapability(typeof(WebDefinition))]
     public class AppDefinition : DefinitionBase
     {
         #region properties
@@ -26,17 +39,26 @@ namespace SPMeta2.Definitions
         /// <summary>
         /// ProductId of the target application.
         /// </summary>
+        [ExpectRequired]
+        [DataMember]
+        [IdentityKey]
         public Guid ProductId { get; set; }
 
+        [ExpectRequired]
         /// <summary>
         /// Target application content.
         /// </summary>
+        [DataMember]
+        [IdentityKey]
         public byte[] Content { get; set; }
 
-
+        [ExpectRequired]
         /// <summary>
         /// A valid Version string of the target application.
         /// </summary>
+        [DataMember]
+        [IdentityKey]
+        [VersionPropertyCapabilityAttribute]
         public string Version { get; set; }
 
         #endregion

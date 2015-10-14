@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
 using SPMeta2.CSOM.Extensions;
 using SPMeta2.CSOM.ModelHosts;
 using SPMeta2.Definitions;
@@ -36,14 +36,34 @@ namespace SPMeta2.CSOM.ModelHandlers.Webparts
             }
 
             var webId = listItemModelHost.HostWeb.Id.ToString();
-
             var wpModel = webPartModel.WithAssertAndCast<ClientWebPartDefinition>("model", value => value.RequireNotNull());
+
+            // Enhance 'ClientWebPart' provision - ProductWebId should be current web by default #623
+            // https://github.com/SubPointSolutions/spmeta2/issues/623
+            var productId = wpModel.ProductId;
+
+            if (!productId.HasGuidValue())
+                productId = listItemModelHost.HostWeb.Id;
+
             var wpXml = WebpartXmlExtensions
                 .LoadWebpartXmlDocument(BuiltInWebPartTemplates.ClientWebPart)
                 .SetOrUpdateProperty("FeatureId", wpModel.FeatureId.ToString())
-                .SetOrUpdateProperty("ProductId", wpModel.ProductId.ToString())
+                .SetOrUpdateProperty("ProductId", productId.ToString())
                 .SetOrUpdateProperty("WebPartName", wpModel.WebPartName)
                 .SetOrUpdateProperty("ProductWebId", webId)
+                .ToString();
+
+            return wpXml;
+        }
+
+        protected override string ProcessCommonWebpartProperties(string webPartXml, WebPartDefinitionBase definition)
+        {
+            var result = base.ProcessCommonWebpartProperties(webPartXml, definition);
+
+            var wpXml = WebpartXmlExtensions
+                .LoadWebpartXmlDocument(result)
+                // Error while putting ClientWebPart to a WikiPage #575
+                .RemoveProperty("Id")
                 .ToString();
 
             return wpXml;

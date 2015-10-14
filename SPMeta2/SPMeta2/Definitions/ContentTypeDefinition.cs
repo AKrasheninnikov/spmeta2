@@ -1,7 +1,11 @@
 ﻿using SPMeta2.Attributes;
+using SPMeta2.Attributes.Identity;
 using SPMeta2.Attributes.Regression;
 using System;
+using System.Collections.Generic;
 using SPMeta2.Definitions.Base;
+using System.Runtime.Serialization;
+using SPMeta2.Attributes.Capabilities;
 
 namespace SPMeta2.Definitions
 {
@@ -16,9 +20,27 @@ namespace SPMeta2.Definitions
     [DefaultRootHostAttribute(typeof(SiteDefinition))]
 
     [Serializable]
+    [DataContract]
+    [ExpectAddHostExtensionMethod]
+    [ExpectWithExtensionMethod]
+    [ExpectArrayExtensionMethod]
 
+    [ParentHostCapability(typeof(SiteDefinition))]
+    [ParentHostCapability(typeof(WebDefinition))]
+
+    [ExpectManyInstances]
     public class ContentTypeDefinition : DefinitionBase
     {
+        #region constructors
+
+        public ContentTypeDefinition()
+        {
+            NameResource = new List<ValueForUICulture>();
+            DescriptionResource = new List<ValueForUICulture>();
+        }
+
+        #endregion
+
         #region properties
 
         /// <summary>
@@ -28,6 +50,9 @@ namespace SPMeta2.Definitions
         /// 
 
         [ExpectValidation]
+        [ExpectRequired(GroupName = "ContentType Id")]
+        [DataMember]
+        [IdentityKey]
         public Guid Id { get; set; }
 
         /// <summary>
@@ -36,7 +61,10 @@ namespace SPMeta2.Definitions
         /// </summary>
         /// 
 
+        [ExpectRequired(GroupName = "ContentType Id")]
         [ExpectValidation]
+        [DataMember]
+        [IdentityKey]
         public string IdNumberValue { get; set; }
 
         /// <summary>
@@ -45,7 +73,19 @@ namespace SPMeta2.Definitions
         /// 
 
         [ExpectValidation]
+        [ExpectRequired]
+        [DataMember]
+        [IdentityKey]
         public string Name { get; set; }
+
+
+        /// <summary>
+        /// Corresponds to NameResource property
+        /// </summary>
+        [ExpectValidation]
+        [ExpectUpdate]
+        [DataMember]
+        public List<ValueForUICulture> NameResource { get; set; }
 
         /// <summary>
         /// Description if the target content type.
@@ -53,7 +93,18 @@ namespace SPMeta2.Definitions
         /// 
 
         [ExpectValidation]
+        [ExpectUpdate]
+        [DataMember]
+        [ExpectNullable]
         public string Description { get; set; }
+
+        /// <summary>
+        /// Corresponds to DescriptionResource property
+        /// </summary>
+        [ExpectValidation]
+        [ExpectUpdate]
+        [DataMember]
+        public List<ValueForUICulture> DescriptionResource { get; set; }
 
         /// <summary>
         /// Group of the target content type.
@@ -61,13 +112,29 @@ namespace SPMeta2.Definitions
         /// 
 
         [ExpectValidation]
+        [ExpectUpdate]
+        [DataMember]
         public string Group { get; set; }
+
+        [ExpectValidation]
+        [ExpectUpdate]
+        [DataMember]
+        public bool Hidden { get; set; }
 
         /// <summary>
         /// Parent content type id. BuiltInContentTypeId class could be used to utilize out of the box content type ids.
         /// </summary>
         /// 
+        [ExpectRequired]
+        [DataMember]
         public string ParentContentTypeId { get; set; }
+
+        [ExpectValidation]
+        [DataMember]
+
+        [SiteCollectionTokenCapability]
+        [WebTokenCapability]
+        public string DocumentTemplate { get; set; }
 
         #endregion
 

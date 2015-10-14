@@ -10,9 +10,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using SPMeta2.Containers.Services;
 using SPMeta2.Syntax.Default;
 using SPMeta2.Syntax.Default.Modern;
+using SPMeta2.Utils;
+using SPMeta2.Containers.Templates.Documents;
+using SPMeta2.Standard.Enumerations;
 
 namespace SPMeta2.Regression.Tests.Impl.Scenarios
 {
@@ -32,6 +35,44 @@ namespace SPMeta2.Regression.Tests.Impl.Scenarios
         {
             InternalCleanup();
         }
+
+        #endregion
+
+        #region scopes
+
+        [TestMethod]
+        [TestCategory("Regression.Scenarios.ContentTypes.Scopes")]
+        public void CanDeploy_SiteScoped_ContentType()
+        {
+            var contentType = ModelGeneratorService.GetRandomDefinition<ContentTypeDefinition>();
+
+            var model = SPMeta2Model
+                   .NewSiteModel(site =>
+                   {
+                       site.AddContentType(contentType);
+                   });
+
+            TestModel(model);
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Scenarios.ContentTypes.Scopes")]
+        public void CanDeploy_WebScoped_ContentType()
+        {
+            var contentType = ModelGeneratorService.GetRandomDefinition<ContentTypeDefinition>();
+
+            var model = SPMeta2Model
+                   .NewWebModel(web =>
+                   {
+                       web.AddRandomWeb(subWeb =>
+                       {
+                           subWeb.AddContentType(contentType);
+                       });
+                   });
+
+            TestModel(model);
+        }
+
 
         #endregion
 
@@ -57,6 +98,76 @@ namespace SPMeta2.Regression.Tests.Impl.Scenarios
             });
         }
 
+        protected List<ContentTypeDefinition> GetHierarchicalContentTypes()
+        {
+            var root = ModelGeneratorService.GetRandomDefinition<ContentTypeDefinition>(def =>
+            {
+                def.ParentContentTypeId = BuiltInContentTypeId.Item;
+            });
+
+            var levelOne = ModelGeneratorService.GetRandomDefinition<ContentTypeDefinition>(def =>
+            {
+                def.ParentContentTypeId = root.GetContentTypeId();
+            });
+
+            var levelTwo = ModelGeneratorService.GetRandomDefinition<ContentTypeDefinition>(def =>
+            {
+                def.ParentContentTypeId = levelOne.GetContentTypeId();
+            });
+
+            return new List<ContentTypeDefinition>(new ContentTypeDefinition[]
+            {
+                root,   
+                levelOne,
+                levelTwo
+            });
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Scenarios.ContentTypes.ParentChild")]
+        public void CanDeploy_HierarchicalContentTypesOrderByIdAcs()
+        {
+            var contentTypes = GetHierarchicalContentTypes();
+
+            contentTypes.Sort(delegate(ContentTypeDefinition c1, ContentTypeDefinition c2)
+            {
+                return c1.IsChildOf(c2) ? -1 : 1;
+            });
+
+            var siteModel = SPMeta2Model
+                .NewSiteModel(site =>
+                {
+                    site.AddContentTypes(contentTypes);
+                });
+
+            TestModel(siteModel);
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Scenarios.ContentTypes.ParentChild")]
+        public void CanDeploy_HierarchicalContentTypesOrderByIdDesc()
+        {
+            var contentTypes = GetHierarchicalContentTypes();
+            contentTypes = contentTypes.OrderByDescending(c => c.Id).ToList();
+
+            contentTypes.Sort(delegate(ContentTypeDefinition c1, ContentTypeDefinition c2)
+            {
+                return c1.IsChildOf(c2) ? 1 : -1;
+            });
+
+            var siteModel = SPMeta2Model
+                .NewSiteModel(site =>
+                {
+                    site.AddContentTypes(contentTypes);
+                });
+
+            TestModel(siteModel);
+        }
+
+        #endregion
+
+        #region utils
+
         protected class ContentTypeEnvironment
         {
             public FieldDefinition First { get; set; }
@@ -69,12 +180,12 @@ namespace SPMeta2.Regression.Tests.Impl.Scenarios
 
             public ContentTypeDefinition ContentType { get; set; }
 
-            public ModelNode SiteModel { get; set; }
+            public SiteModelNode SiteModel { get; set; }
         }
 
         private ContentTypeEnvironment GetContentTypeSandbox(
-            Action<ModelNode, ContentTypeEnvironment> siteModelConfig,
-            Action<ModelNode, ContentTypeEnvironment> contentTypeModelConfig)
+            Action<SiteModelNode, ContentTypeEnvironment> siteModelConfig,
+            Action<ContentTypeModelNode, ContentTypeEnvironment> contentTypeModelConfig)
         {
             var result = new ContentTypeEnvironment();
 
@@ -107,17 +218,20 @@ namespace SPMeta2.Regression.Tests.Impl.Scenarios
                                  .AddContentTypeFieldLink(fldFirst, link =>
                                  {
                                      result.FirstLink = link;
-                                     link.Options.RequireSelfProcessing = link.Value.RequireSelfProcessing = true;
+                                     //link.Options.RequireSelfProcessing = link.Value.RequireSelfProcessing = true;
+                                     link.Options.RequireSelfProcessing = true;
                                  })
                                  .AddContentTypeFieldLink(fldSecond, link =>
                                  {
                                      result.SecondLink = link;
-                                     link.Options.RequireSelfProcessing = link.Value.RequireSelfProcessing = true;
+                                     //link.Options.RequireSelfProcessing = link.Value.RequireSelfProcessing = true;
+                                     link.Options.RequireSelfProcessing = true;
                                  })
                                  .AddContentTypeFieldLink(fldThird, link =>
                                  {
                                      result.ThirdLink = link;
-                                     link.Options.RequireSelfProcessing = link.Value.RequireSelfProcessing = true;
+                                     //link.Options.RequireSelfProcessing = link.Value.RequireSelfProcessing = true;
+                                     link.Options.RequireSelfProcessing = true;
                                  });
 
                              if (contentTypeModelConfig != null)
@@ -132,8 +246,6 @@ namespace SPMeta2.Regression.Tests.Impl.Scenarios
 
             return result;
         }
-
-
 
         #endregion
 
@@ -189,9 +301,13 @@ namespace SPMeta2.Regression.Tests.Impl.Scenarios
                            {
                                // disable validation on content type field links as they would be deleted by 'RemoveContentTypeFieldLinksDefinition'
 
-                               e.FirstLink.Options.RequireSelfProcessing = e.FirstLink.Value.RequireSelfProcessing = false;
-                               e.SecondLink.Options.RequireSelfProcessing = e.SecondLink.Value.RequireSelfProcessing = false;
-                               e.ThirdLink.Options.RequireSelfProcessing = e.ThirdLink.Value.RequireSelfProcessing = false;
+                               //e.FirstLink.Options.RequireSelfProcessing = e.FirstLink.Value.RequireSelfProcessing = false;
+                               //e.SecondLink.Options.RequireSelfProcessing = e.SecondLink.Value.RequireSelfProcessing = false;
+                               //e.ThirdLink.Options.RequireSelfProcessing = e.ThirdLink.Value.RequireSelfProcessing = false;
+
+                               e.FirstLink.Options.RequireSelfProcessing = false;
+                               e.SecondLink.Options.RequireSelfProcessing = false;
+                               e.ThirdLink.Options.RequireSelfProcessing = false;
                            });
                        });
                 });
@@ -229,9 +345,210 @@ namespace SPMeta2.Regression.Tests.Impl.Scenarios
 
         #endregion
 
-        #region hierarchical content types
+        #region doc templates
 
-        // TODO
+
+
+        [TestMethod]
+        [TestCategory("Regression.Scenarios.ContentTypes.DocumentTemplate")]
+        public void CanDeploy_ContentType_WithDocTemplate_In_ResourceFolder()
+        {
+            var siteContentType = ModelGeneratorService.GetRandomDefinition<ContentTypeDefinition>();
+            var documentTemplate = ModelGeneratorService.GetRandomDefinition<ModuleFileDefinition>(def =>
+            {
+                def.Content = DocumentTemplates.SPMeta2_MSWord_Template;
+                def.FileName = Rnd.String() + ".dotx";
+            });
+
+
+            siteContentType.DocumentTemplate = documentTemplate.FileName;
+
+            var siteModel = SPMeta2Model.NewSiteModel(site =>
+            {
+                site.AddContentType(siteContentType, contentType =>
+                {
+                    contentType.AddModuleFile(documentTemplate);
+                });
+            });
+
+            var contentModel = SPMeta2Model.NewWebModel(web =>
+            {
+                web.AddRandomDocumentLibrary(list =>
+                {
+                    list.AddContentTypeLink(siteContentType);
+                });
+            });
+
+            TestModels(new ModelNode[] { siteModel, contentModel });
+        }
+
+
+        [TestMethod]
+        [TestCategory("Regression.Scenarios.ContentTypes.DocumentTemplate")]
+        public void CanDeploy_ContentType_WithDocTemplate_In_RootWeb_DocumentLibrary()
+        {
+            var siteContentType = ModelGeneratorService.GetRandomDefinition<ContentTypeDefinition>();
+
+            var documentTemplate = ModelGeneratorService.GetRandomDefinition<ModuleFileDefinition>(def =>
+            {
+                def.Content = DocumentTemplates.SPMeta2_MSWord_Template;
+                def.FileName = Rnd.String() + ".dotx";
+            });
+
+            var documentTemplateLibrary = ModelGeneratorService.GetRandomDefinition<ListDefinition>(def =>
+            {
+                def.TemplateType = BuiltInListTemplateTypeId.DocumentLibrary;
+            });
+
+            siteContentType.DocumentTemplate = UrlUtility.CombineUrl(new[]{
+               "~sitecollection", 
+               documentTemplateLibrary.Url,
+               documentTemplate.FileName 
+            });
+
+            var siteModel = SPMeta2Model.NewSiteModel(site =>
+            {
+                site.AddContentType(siteContentType);
+            });
+
+            var webModel = SPMeta2Model.NewWebModel(web =>
+            {
+                web.AddList(documentTemplateLibrary, list =>
+                {
+                    list.AddModuleFile(documentTemplate);
+                });
+            });
+
+            var contentModel = SPMeta2Model.NewWebModel(web =>
+            {
+                web.AddRandomDocumentLibrary(list =>
+                {
+                    list.AddContentTypeLink(siteContentType);
+                });
+            });
+
+            TestModels(new ModelNode[] { webModel, siteModel, contentModel });
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Scenarios.ContentTypes.DocumentTemplate")]
+        public void CanDeploy_ContentType_WithDocTemplate_In_SubWeb_DocumentLibrary()
+        {
+            var siteContentType = ModelGeneratorService.GetRandomDefinition<ContentTypeDefinition>();
+
+            var documentTemplate = ModelGeneratorService.GetRandomDefinition<ModuleFileDefinition>(def =>
+            {
+                def.Content = DocumentTemplates.SPMeta2_MSWord_Template;
+                def.FileName = Rnd.String() + ".dotx";
+            });
+
+            var documentTemplateLibrary = ModelGeneratorService.GetRandomDefinition<ListDefinition>(def =>
+            {
+                def.TemplateType = BuiltInListTemplateTypeId.DocumentLibrary;
+            });
+
+            var subWebDef = ModelGeneratorService.GetRandomDefinition<WebDefinition>();
+
+            siteContentType.DocumentTemplate = UrlUtility.CombineUrl(new[]{
+               "~sitecollection", 
+               subWebDef.Url,
+               documentTemplateLibrary.Url,
+               documentTemplate.FileName 
+            });
+
+            var siteModel = SPMeta2Model.NewSiteModel(site =>
+            {
+                site.AddContentType(siteContentType);
+            });
+
+            var webModel = SPMeta2Model.NewWebModel(web =>
+            {
+                web.AddWeb(subWebDef, subWeb =>
+                {
+                    subWeb.AddList(documentTemplateLibrary, list =>
+                    {
+                        list.AddModuleFile(documentTemplate);
+                    });
+                });
+
+
+            });
+
+            var contentModel = SPMeta2Model.NewWebModel(web =>
+            {
+                web.AddRandomDocumentLibrary(list =>
+                {
+                    list.AddContentTypeLink(siteContentType);
+                });
+            });
+
+            TestModels(new ModelNode[] { webModel, siteModel, contentModel });
+        }
+
+        #endregion
+
+        #region localization
+
+        [TestMethod]
+        [TestCategory("Regression.Scenarios.ContentTypes.Localization")]
+        public void CanDeploy_Localized_Site_ContentType()
+        {
+            var definition = GetLocalizedDefinition();
+
+            var model = SPMeta2Model.NewSiteModel(site =>
+            {
+                site.AddContentType(definition);
+            });
+
+            TestModel(model);
+        }
+
+        [TestMethod]
+        [TestCategory("Regression.Scenarios.ContentTypes.Localization")]
+        public void CanDeploy_Localized_Web_ContentType()
+        {
+            var contentType = GetLocalizedDefinition();
+            var subWebContentType = GetLocalizedDefinition();
+
+            var model = SPMeta2Model.NewWebModel(web =>
+            {
+                web.AddContentType(contentType);
+
+                web.AddRandomWeb(subWeb =>
+                {
+                    subWeb.AddContentType(subWebContentType);
+                });
+            });
+
+            TestModel(model);
+        }
+
+        #endregion
+
+        #region utils
+
+        protected ContentTypeDefinition GetLocalizedDefinition()
+        {
+            var definition = ModelGeneratorService.GetRandomDefinition<ContentTypeDefinition>();
+            var localeIds = Rnd.LocaleIds();
+
+            foreach (var localeId in localeIds)
+            {
+                definition.NameResource.Add(new ValueForUICulture
+                {
+                    CultureId = localeId,
+                    Value = string.Format("LocalizedName_{0}", localeId)
+                });
+
+                definition.DescriptionResource.Add(new ValueForUICulture
+                {
+                    CultureId = localeId,
+                    Value = string.Format("LocalizedDescription_{0}", localeId)
+                });
+            }
+
+            return definition;
+        }
 
         #endregion
     }

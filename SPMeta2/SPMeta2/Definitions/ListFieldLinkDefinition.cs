@@ -4,9 +4,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+
 using SPMeta2.Definitions.Base;
+using SPMeta2.Enumerations;
 using SPMeta2.Utils;
+using System.Runtime.Serialization;
+using SPMeta2.Attributes.Capabilities;
+using SPMeta2.Attributes.Identity;
 
 namespace SPMeta2.Definitions
 {
@@ -22,6 +26,14 @@ namespace SPMeta2.Definitions
     [DefaultParentHostAttribute(typeof(ListDefinition))]
 
     [Serializable]
+    [DataContract]
+    [ExpectWithExtensionMethod]
+    [ExpectArrayExtensionMethod]
+
+    [ParentHostCapability(typeof(ListDefinition))]
+
+    [ExpectManyInstances]
+
     public class ListFieldLinkDefinition : DefinitionBase
     {
         #region properties
@@ -35,7 +47,40 @@ namespace SPMeta2.Definitions
         /// 
 
         [ExpectValidation]
-        public Guid FieldId { get; set; }
+        [ExpectRequired(GroupName = "FieldIdOrName")]
+        [DataMember]
+        [IdentityKey]
+        public Guid? FieldId { get; set; }
+
+        [ExpectValidation]
+        [ExpectRequired(GroupName = "FieldIdOrName")]
+        [DataMember]
+        [IdentityKey]
+        public string FieldInternalName { get; set; }
+
+        [ExpectValidation]
+        [DataMember]
+        public bool? Required { get; set; }
+
+        [ExpectValidation]
+        [DataMember]
+        public bool? Hidden { get; set; }
+
+        /// <summary>
+        /// Is not supported in CSOM yet!
+        /// https://officespdev.uservoice.com/forums/224641-general/suggestions/7024931-enhance-fieldlink-class-with-additional-properties
+        /// </summary>
+        [ExpectValidation]
+        [DataMember]
+        public string DisplayName { get; set; }
+
+        [ExpectValidation]
+        [DataMember]
+        public bool AddToDefaultView { get; set; }
+
+        [ExpectValidation]
+        [DataMember]
+        public BuiltInAddFieldOptions AddFieldOptions { get; set; }
 
         #endregion
 

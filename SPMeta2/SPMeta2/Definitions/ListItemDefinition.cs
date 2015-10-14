@@ -1,4 +1,5 @@
 ﻿using SPMeta2.Attributes;
+using SPMeta2.Attributes.Identity;
 using SPMeta2.Attributes.Regression;
 using System;
 using System.Collections.Generic;
@@ -6,6 +7,8 @@ using System.Linq;
 using System.Text;
 using SPMeta2.Definitions.Base;
 using SPMeta2.Utils;
+using System.Runtime.Serialization;
+using SPMeta2.Attributes.Capabilities;
 
 namespace SPMeta2.Definitions
 {
@@ -19,7 +22,15 @@ namespace SPMeta2.Definitions
     [DefaultRootHostAttribute(typeof(WebDefinition))]
     [DefaultParentHostAttribute(typeof(ListDefinition))]
 
-    [Serializable]
+    [ExpectAddHostExtensionMethod]
+    [Serializable] 
+    [DataContract]
+    [ExpectWithExtensionMethod]
+    [ExpectArrayExtensionMethod]
+
+    [ParentHostCapability(typeof(ListDefinition))]
+
+    [ExpectManyInstances]
     public class ListItemDefinition : DefinitionBase
     {
         #region constructors
@@ -40,6 +51,9 @@ namespace SPMeta2.Definitions
         /// 
 
         [ExpectValidation]
+        [ExpectRequired]
+        [DataMember]
+        [IdentityKey]
         public string Title { get; set; }
 
         /// <summary>
@@ -47,21 +61,28 @@ namespace SPMeta2.Definitions
         /// </summary>
         /// 
 
+        [DataMember]
         public bool Overwrite { get; set; }
 
         /// <summary>
         /// Should SystemUpdate() be used.
         /// </summary>
+        /// 
+        [DataMember]
         public bool SystemUpdate { get; set; }
 
         /// <summary>
         /// Should SystemUpdateIncrementVersionNumber be used.
         /// </summary>
+        /// 
+        [DataMember]
         public bool SystemUpdateIncrementVersionNumber { get; set; }
 
         /// <summary>
         /// Should UpdateOverwriteVersion be used.
         /// </summary>
+        /// 
+        [DataMember]
         public bool UpdateOverwriteVersion { get; set; }
 
         // should be collection of attachments later

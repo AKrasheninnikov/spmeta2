@@ -1,7 +1,10 @@
 ﻿using SPMeta2.Attributes;
+using SPMeta2.Attributes.Identity;
 using SPMeta2.Attributes.Regression;
 using System;
 using SPMeta2.Definitions.Base;
+using System.Runtime.Serialization;
+using SPMeta2.Attributes.Capabilities;
 
 namespace SPMeta2.Definitions
 {
@@ -16,7 +19,13 @@ namespace SPMeta2.Definitions
     [DefaultParentHostAttribute(typeof(ContentTypeDefinition))]
 
     [Serializable]
+    [DataContract]
+    [ExpectWithExtensionMethod]
+    [ExpectArrayExtensionMethod]
 
+    [ExpectManyInstances]
+
+    [ParentHostCapability(typeof(ContentTypeDefinition))]
     public class ContentTypeFieldLinkDefinition : DefinitionBase
     {
         #region properties
@@ -28,7 +37,32 @@ namespace SPMeta2.Definitions
         /// 
 
         [ExpectValidation]
-        public Guid FieldId { get; set; }
+        [ExpectRequired(GroupName = "FieldIdOrName")]
+        [DataMember]
+        [IdentityKey]
+        public Guid? FieldId { get; set; }
+
+        [ExpectValidation]
+        [ExpectRequired(GroupName = "FieldIdOrName")]
+        [DataMember]
+        [IdentityKey]
+        public string FieldInternalName { get; set; }
+
+        [ExpectValidation]
+        [DataMember]
+        public bool? Required { get; set; }
+
+        [ExpectValidation]
+        [DataMember]
+        public bool? Hidden { get; set; }
+
+        /// <summary>
+        /// Is not supported in CSOM yet!
+        /// https://officespdev.uservoice.com/forums/224641-general/suggestions/7024931-enhance-fieldlink-class-with-additional-properties
+        /// </summary>
+        [ExpectValidation]
+        [DataMember]
+        public string DisplayName { get; set; }
 
         #endregion
 
