@@ -1,14 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Runtime.Remoting;
+using System.Runtime.Serialization;
 using System.Xml.Serialization;
 using SPMeta2.Common;
 using SPMeta2.Definitions;
-using SPMeta2.Definitions.Base;
 using SPMeta2.Exceptions;
 using SPMeta2.Services;
-using System.Runtime.Serialization;
 
 namespace SPMeta2.Models
 {
@@ -54,6 +52,8 @@ namespace SPMeta2.Models
         /// <summary>
         /// Indicates of model node needs to be processed by model handler.
         /// </summary>
+
+        [DataMember]
         public bool RequireSelfProcessing { get; set; }
 
         #endregion
@@ -90,15 +90,21 @@ namespace SPMeta2.Models
 
         public ModelNode()
         {
-            TraceService = ServiceContainer.Instance.GetService<TraceServiceBase>();
 
             ChildModels = new Collection<ModelNode>();
             Options = new ModelNodeOptions();
 
+            PropertyBag = new List<PropertyBagValue>();
+
+            InitDataMemberIgnorableProperties();
+        }
+
+        private void InitDataMemberIgnorableProperties()
+        {
+            TraceService = ServiceContainer.Instance.GetService<TraceServiceBase>();
+
             ModelEvents = new Dictionary<ModelEventType, List<object>>();
             ModelContextEvents = new Dictionary<ModelEventType, List<object>>();
-
-            PropertyBag = new List<PropertyBagValue>();
         }
 
         #endregion
@@ -126,10 +132,11 @@ namespace SPMeta2.Models
         [DataMember]
         public ModelNodeOptions Options { get; set; }
 
-        [DataMember]
         /// <summary>
         /// A property bag to be used for any 'custom' properties attached to ModelNode.
         /// </summary>
+        [DataMember]
+
         public List<PropertyBagValue> PropertyBag { get; set; }
 
         [DataMember]
@@ -153,9 +160,19 @@ namespace SPMeta2.Models
         [XmlIgnore]
         [NonSerialized]
         [IgnoreDataMember]
-        private readonly TraceServiceBase TraceService;
+        protected TraceServiceBase TraceService;
 
         #endregion
+
+        [OnDeserialized]
+        void OnDeserialized(StreamingContext context)
+        {
+            // https://github.com/SubPointSolutions/spmeta2/issues/697
+            // serialization would set all [IgnoreDataMember] as nulls
+            // so we need to sestore them to normal state as we would go in constructor
+
+            InitDataMemberIgnorableProperties();
+        }
 
         #region events support
 
@@ -257,7 +274,7 @@ namespace SPMeta2.Models
 
             // yeap, shity yet
             foreach (MulticastDelegate action in targetEvents)
-                action.DynamicInvoke(this.Value, rawObject);
+                action.DynamicInvoke(Value, rawObject);
         }
 
         public virtual void RegisterModelUpdateEvents<TModelDefinition, TSPObject>(

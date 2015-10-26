@@ -13,6 +13,7 @@ using SPMeta2.ModelHandlers;
 using SPMeta2.Services;
 using SPMeta2.Utils;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace SPMeta2.CSOM.ModelHandlers
 {
@@ -22,21 +23,19 @@ namespace SPMeta2.CSOM.ModelHandlers
 
         static FieldModelHandler()
         {
-            ShouldHandleIncorectlyDeletedTaxonomyField = true;
+        
         }
 
         #endregion
 
         #region properties
 
-        public static bool ShouldHandleIncorectlyDeletedTaxonomyField { get; set; }
-
         public override Type TargetType
         {
             get { return typeof(FieldDefinition); }
         }
 
-        protected SiteModelHost CurrentSiteModelHost { get; set; }
+        protected ClientContext CurrentHostClientContext { get; set; }
 
         #endregion
 
@@ -59,6 +58,10 @@ namespace SPMeta2.CSOM.ModelHandlers
 
         #region methods
 
+        protected virtual bool PreloadProperties(Field field)
+        {
+            return false;
+        }
 
         protected List ExtractListFromHost(object modelHost)
         {
@@ -177,7 +180,7 @@ namespace SPMeta2.CSOM.ModelHandlers
                 || modelHost is ListModelHost))
                 throw new ArgumentException("modelHost needs to be SiteModelHost/WebModelHost/ListModelHost instance.");
 
-            CurrentSiteModelHost = modelHost as SiteModelHost;
+            CurrentHostClientContext = (modelHost as CSOMModelHostBase).HostClientContext;
 
             HostSite = ExtractSiteFromHost(modelHost);
             HostWeb = ExtractWebFromHost(modelHost);
@@ -198,7 +201,6 @@ namespace SPMeta2.CSOM.ModelHandlers
                 ObjectDefinition = model,
                 ModelHost = modelHost
             });
-            InvokeOnModelEvent<FieldDefinition, Field>(currentField, ModelEventType.OnUpdating);
 
             if (modelHost is SiteModelHost)
             {
@@ -237,8 +239,6 @@ namespace SPMeta2.CSOM.ModelHandlers
                 typedField = generic.Invoke(context, new object[] { currentField });
             }
 
-
-
             InvokeOnModelEvent(this, new ModelEventArgs
             {
                 CurrentModelNode = null,
@@ -249,13 +249,14 @@ namespace SPMeta2.CSOM.ModelHandlers
                 ObjectDefinition = model,
                 ModelHost = modelHost
             });
-            InvokeOnModelEvent<FieldDefinition, Field>(currentField, ModelEventType.OnUpdated);
 
             TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "UpdateAndPushChanges(true)");
             currentField.UpdateAndPushChanges(true);
 
             TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "ExecuteQuery()");
             context.ExecuteQueryWithTrace();
+
+            CurrentHostClientContext = null;
         }
 
         private Field DeployWebField(WebModelHost webModelHost, FieldDefinition fieldDefinition)
@@ -290,6 +291,7 @@ namespace SPMeta2.CSOM.ModelHandlers
             {
                 field = web.Fields.GetById(id);
                 context.Load(field);
+                PreloadProperties(field);
 
                 TraceService.VerboseFormat((int)LogEventId.ModelProvisionCoreCall, "Found site field with Id: [{0}]", id);
                 TraceService.Verbose((int)LogEventId.ModelProvisionCoreCall, "ExecuteQuery()");
@@ -486,15 +488,13 @@ namespace SPMeta2.CSOM.ModelHandlers
 
                 var fieldDef = GetTargetSPFieldXmlDefinition(fieldModel);
 
-                // special handle for taxonomy field
-                // incorectly removed tax field leaves its indexed field
-                // https://github.com/SubPointSolutions/spmeta2/issues/521
-
-                if (ShouldHandleIncorectlyDeletedTaxonomyField)
-                    HandleIncorectlyDeletedTaxonomyField(fieldModel, fieldCollection);
-
                 var addFieldOptions = (AddFieldOptions)(int)fieldModel.AddFieldOptions;
                 var resultField = fieldCollection.AddFieldAsXml(fieldDef, fieldModel.AddToDefaultView, addFieldOptions);
+
+                if (PreloadProperties(resultField))
+                {
+                    context.ExecuteQueryWithTrace();
+                }
 
                 ProcessFieldProperties(resultField, fieldModel);
 
@@ -512,42 +512,47 @@ namespace SPMeta2.CSOM.ModelHandlers
 
         protected virtual void HandleIncorectlyDeletedTaxonomyField(FieldDefinition fieldModel, FieldCollection fields)
         {
-            var context = fields.Context;
+            return;
 
-            var isTaxField =
-                  fieldModel.FieldType.ToUpper() == BuiltInFieldTypes.TaxonomyFieldType.ToUpper()
-                  || fieldModel.FieldType.ToUpper() == BuiltInFieldTypes.TaxonomyFieldTypeMulti.ToUpper();
+            // excluded due ot potential data corruption
+            // such issues shoud be handled by end user manually
 
-            if (!isTaxField)
-                return;
+            //var context = fields.Context;
 
-            var existingIndexedFieldName = fieldModel.Title + "_0";
-            var query = from field in fields
-                        where field.Title == existingIndexedFieldName
-                        select field;
+            //var isTaxField =
+            //      fieldModel.FieldType.ToUpper() == BuiltInFieldTypes.TaxonomyFieldType.ToUpper()
+            //      || fieldModel.FieldType.ToUpper() == BuiltInFieldTypes.TaxonomyFieldTypeMulti.ToUpper();
+
+            //if (!isTaxField)
+            //    return;
+
+            //var existingIndexedFieldName = fieldModel.Title + "_0";
+            //var query = from field in fields
+            //            where field.Title == existingIndexedFieldName
+            //            select field;
 
 
-            var result = context.LoadQuery(query);
-            context.ExecuteQueryWithTrace();
+            //var result = context.LoadQuery(query);
+            //context.ExecuteQueryWithTrace();
 
-            if (result.Count() > 0)
-            {
-                var existingIndexedField = result.FirstOrDefault();
-                if (existingIndexedField != null && existingIndexedField.FieldTypeKind == FieldType.Note)
-                {
-                    // tmp fix
-                    // https://github.com/SubPointSolutions/spmeta2/issues/521
-                    try
-                    {
-                        existingIndexedField.DeleteObject();
-                        context.ExecuteQueryWithTrace();
-                    }
-                    catch (Exception e)
-                    {
+            //if (result.Count() > 0)
+            //{
+            //    var existingIndexedField = result.FirstOrDefault();
+            //    if (existingIndexedField != null && existingIndexedField.FieldTypeKind == FieldType.Note)
+            //    {
+            //        // tmp fix
+            //        // https://github.com/SubPointSolutions/spmeta2/issues/521
+            //        try
+            //        {
+            //            existingIndexedField.DeleteObject();
+            //            context.ExecuteQueryWithTrace();
+            //        }
+            //        catch (Exception e)
+            //        {
 
-                    }
-                }
-            }
+            //        }
+            //    }
+            //}
         }
 
 

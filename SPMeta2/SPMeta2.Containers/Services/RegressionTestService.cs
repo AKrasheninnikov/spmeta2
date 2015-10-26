@@ -39,6 +39,8 @@ namespace SPMeta2.Containers.Services
 
         public RegressionTestService()
         {
+            RegExcludedDefinitionTypes = new List<Type>();
+
             ModelGeneratorService = new ModelGeneratorService();
             //Assert = new AssertService();
 
@@ -427,7 +429,7 @@ namespace SPMeta2.Containers.Services
         public void TestModels(IEnumerable<ModelNode> models)
         {
             // force XML serialiation
-            EnsureSerializationSupport(models);
+            GetSerializedAndRestoredModels(models);
 
             _hookMap.Clear();
 
@@ -473,25 +475,28 @@ namespace SPMeta2.Containers.Services
             }
         }
 
-        protected virtual void EnsureSerializationSupport(ModelNode model)
+        public virtual List<ModelNode> GetSerializedAndRestoredModels(ModelNode model)
         {
-            EnsureSerializationSupport(new[] { model });
+            return GetSerializedAndRestoredModels(new[] { model });
         }
 
-        protected virtual void EnsureSerializationSupport(IEnumerable<ModelNode> models)
+        public virtual List<ModelNode> GetSerializedAndRestoredModels(IEnumerable<ModelNode> models)
         {
+            var result = new List<ModelNode>();
+
             foreach (var model in models)
             {
-
-
-
-
                 var xml = SPMeta2Model.ToXML(model);
                 var xmlModelInstance = SPMeta2Model.FromXML(xml);
 
                 var json = SPMeta2Model.ToJSON(model);
                 var jsonModelInstance = SPMeta2Model.FromJSON(json);
+
+                result.Add(xmlModelInstance);
+                result.Add(jsonModelInstance);
             }
+
+            return result;
         }
 
         public ModelNode TestRandomDefinition<TDefinition>(Action<TDefinition> definitionSetup)
@@ -527,7 +532,7 @@ namespace SPMeta2.Containers.Services
                 foreach (var hook in hooks)
                     hook.Tag = runner.Name;
 
-                EnsureSerializationSupport(definitionSandbox);
+                GetSerializedAndRestoredModels(definitionSandbox);
 
                 allHooks.AddRange(hooks);
 
@@ -576,9 +581,9 @@ namespace SPMeta2.Containers.Services
         public bool EnablePropertyValidation { get; set; }
         public bool EnableEventValidation { get; set; }
 
+        public List<Type> RegExcludedDefinitionTypes { get; set; }
 
         private bool ResolveModelValidation(ModelNode modelNode, string start, List<EventHooks> hooks)
-            
         {
             // should be re-written with ModelTreeTraverseService
 
@@ -593,6 +598,9 @@ namespace SPMeta2.Containers.Services
             if (modelNode.Options.RequireSelfProcessing)
             {
                 var shouldProcessFlag = !modelNode.RegIsExcludedFromValidation();
+
+                if (RegExcludedDefinitionTypes.Contains(modelNode.Value.GetType()))
+                    shouldProcessFlag = false;
 
                 if (shouldProcessFlag)
                 {

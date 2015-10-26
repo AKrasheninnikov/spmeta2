@@ -104,6 +104,35 @@ namespace SPMeta2.SSOM.ModelHandlers
             if (!string.IsNullOrEmpty(definition.ExportMode))
                 instance.ExportMode = (WebPartExportMode)Enum.Parse(typeof(WebPartExportMode), definition.ExportMode);
 
+            ProcessWebpartCustomProperties(instance, definition);
+            ProcessParameterBindings(instance, definition);
+        }
+
+        protected virtual void ProcessWebpartCustomProperties(WebPart instance, WebPartDefinition definition)
+        {
+            if (definition.Properties != null && definition.Properties.Count > 0)
+            {
+                var wpType = instance.GetType();
+
+                foreach (var prop in definition.Properties)
+                {
+                    var isCdata = prop.IsCData.HasValue && prop.IsCData.Value;
+
+                    if (ReflectionUtils.HasProperty(instance, prop.Name))
+                    {
+                        var wpProp = wpType.GetProperty(prop.Name);
+                        var wpPropType = wpProp.PropertyType;
+
+                        var targetValue = Convert.ChangeType(prop.Value, wpPropType);
+
+                        wpProp.SetValue(instance, targetValue, null);
+                    }
+                }
+            }
+        }
+
+        protected virtual void ProcessParameterBindings(WebPart instance, WebPartDefinition definition)
+        {
             var dataFomWebPart = instance as DataFormWebPart;
 
             if (dataFomWebPart != null
@@ -131,7 +160,6 @@ namespace SPMeta2.SSOM.ModelHandlers
 
             OnBeforeDeployModel(host, webpartModel);
 
-            InvokeOnModelEvent<FieldDefinition, SPField>(null, ModelEventType.OnUpdating);
             WebPartExtensions.DeployWebPartToPage(host.SPLimitedWebPartManager, webpartModel,
                 onUpdatingWebpartInstnce =>
                 {
@@ -151,8 +179,6 @@ namespace SPMeta2.SSOM.ModelHandlers
                         ModelHost = modelHost
                     });
 
-                    InvokeOnModelEvent<WebPartDefinition, WebPart>(onUpdatingWebpartInstnce, ModelEventType.OnUpdating);
-
                 },
                 onUpdatedWebpartInstnce =>
                 {
@@ -168,8 +194,6 @@ namespace SPMeta2.SSOM.ModelHandlers
                         ObjectDefinition = model,
                         ModelHost = modelHost
                     });
-
-                    InvokeOnModelEvent<WebPartDefinition, WebPart>(onUpdatedWebpartInstnce, ModelEventType.OnUpdated);
                 },
                 ProcessWebpartProperties);
         }

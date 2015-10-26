@@ -27,6 +27,10 @@
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
     <DocumentationFile>bin\Debug\SPMeta2.XML</DocumentationFile>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <NoWarn>1591</NoWarn>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -80,6 +84,30 @@
     <Prefer32Bit>false</Prefer32Bit>
     <DocumentationFile>bin\Debug45\SPMeta2.XML</DocumentationFile>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'CI-O365|AnyCPU'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\CI-O365\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DocumentationFile>bin\Debug\SPMeta2.XML</DocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>1591</NoWarn>
+    <DebugType>full</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'CI-CSOM2013|AnyCPU'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\CI-CSOM2013\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DocumentationFile>bin\Debug\SPMeta2.XML</DocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>1591</NoWarn>
+    <DebugType>full</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Runtime.Serialization" />
@@ -93,6 +121,7 @@
   <ItemGroup>
     <Compile Include="Attributes\Capabilities\CapabilityAttribute.cs" />
     <Compile Include="Attributes\Capabilities\HashCodePartCapabilityAttribute.cs" />
+    <Compile Include="Attributes\Capabilities\NotAbsoluteUrlCapabilityAttribute.cs" />
     <Compile Include="Attributes\Capabilities\ParentHostCapabilityAttribute.cs" />
     <Compile Include="Attributes\Capabilities\SiteCollectionTokenCapabilityAttribute.cs" />
     <Compile Include="Attributes\Capabilities\TokenCapabilityAttribute.cs" />
@@ -105,6 +134,7 @@
     <Compile Include="Attributes\Identity\SingletonIdentityAttribute.cs" />
     <Compile Include="Attributes\Regression\ExpectArrayExtensionMethod.cs" />
     <Compile Include="Attributes\Regression\ExpectManyInstances.cs" />
+    <Compile Include="Attributes\Regression\ExpectWebpartType.cs" />
     <Compile Include="Attributes\Regression\ExpectNullable.cs" />
     <Compile Include="Attributes\Regression\ExpectRequired.cs" />
     <Compile Include="Attributes\Regression\ExpectWithExtensionMethod.cs" />
@@ -125,9 +155,11 @@
     <Compile Include="Common\KeyNameValue.cs" />
     <Compile Include="Common\ModelHostResolveContext.cs" />
     <Compile Include="Definitions\AlternateUrlDefinition.cs" />
+    <Compile Include="Definitions\AnonymousAccessSettingsDefinition.cs" />
     <Compile Include="Definitions\AppDefinition.cs" />
     <Compile Include="Definitions\AuditSettingsDefinition.cs" />
     <Compile Include="Definitions\Base\ContentPageDefinitionBase.cs" />
+    <Compile Include="Definitions\ClearRecycleBinDefinition.cs" />
     <Compile Include="Definitions\ComposedLookItemDefinition.cs" />
     <Compile Include="Definitions\ComposedLookItemLinkDefinition.cs" />
     <Compile Include="Definitions\ContentDatabaseDefinition.cs" />
@@ -189,10 +221,13 @@
     <Compile Include="Enumerations\BuiltInPartChromeType.cs" />
     <Compile Include="Enumerations\BuiltInRelationshipDeleteBehavior.cs" />
     <Compile Include="Enumerations\BuiltInSecureStoreCredentialType.cs" />
+    <Compile Include="Enumerations\BuiltInSP2013WorkflowPropertyNames.cs" />
     <Compile Include="Enumerations\BuiltInTargetApplicationType.cs" />
     <Compile Include="Enumerations\BuiltInUrlFieldFormatType.cs" />
     <Compile Include="Enumerations\BuiltInUrlZone.cs" />
+    <Compile Include="Enumerations\BuiltInViewStyleId.cs" />
     <Compile Include="Enumerations\BuiltInViewType.cs" />
+    <Compile Include="Enumerations\BuiltInWebAnonymousState.cs" />
     <Compile Include="Enumerations\BuiltInWebConfigModificationType.cs" />
     <Compile Include="Enumerations\ListTemplate.cs" />
     <Compile Include="Common\DefaultModelWeigh.cs" />
@@ -297,8 +332,11 @@
     <Compile Include="Services\DefaultPreDeploymentTreeTraverseServiceBase.cs" />
     <Compile Include="Services\DeploymentServiceBase.cs" />
     <Compile Include="Services\HashCodeServiceBase.cs" />
+    <Compile Include="Services\Impl\DefaultFieldInternalNamePropertyValidationService.cs" />
     <Compile Include="Services\Impl\DefaultDefinitionRelationshipService.cs" />
+    <Compile Include="Services\Impl\DefaultNotAbsoluteUrlPropertiesValidationService.cs" />
     <Compile Include="Services\Impl\DefaultVersionBasedPropertiesValidationService.cs" />
+    <Compile Include="Services\Impl\DefaultContentTypeIdPropertyValidationService.cs" />
     <Compile Include="Services\Impl\DefaultXmlBasedPropertiesValidationService.cs" />
     <Compile Include="Services\Impl\DefaultRequiredPropertiesValidationService.cs" />
     <Compile Include="Services\Impl\DefaultWebPartChromeTypesConvertService.cs" />
@@ -317,16 +355,22 @@
     <Compile Include="Services\PreDeploymentServiceBase.cs" />
     <Compile Include="Services\ProvisionServiceBase.cs" />
     <Compile Include="Services\SerializationServiceBase.cs" />
+    <Compile Include="Services\ServiceModelHandlers\DefaultContentTypeIdPropertyModelHandler.cs" />
     <Compile Include="Services\ServiceModelHandlers\DefaultRequiredPropertiesModelHandler.cs" />
+    <Compile Include="Services\ServiceModelHandlers\DefaultNotAbsoluteUrlPropertiesModelHandler.cs" />
     <Compile Include="Services\ServiceModelHandlers\DefaultVersionBasedPropertiesModelHandler.cs" />
+    <Compile Include="Services\ServiceModelHandlers\DefaultFieldInternalNamePropertyModelHandler.cs" />
     <Compile Include="Services\ServiceModelHandlers\DefaultXmlBasedPropertiesModelHandler.cs" />
     <Compile Include="Services\ServiceModelHandlers\ServiceModelHandlerBase.cs" />
+    <Compile Include="Services\ServiceModelHandlers\TypedDefinitionModelHandlerBase.cs" />
     <Compile Include="Services\SPMetaServiceBase.cs" />
     <Compile Include="Services\TokenReplacementServiceBase.cs" />
     <Compile Include="Services\TraceServiceBase.cs" />
     <Compile Include="Services\WebPartChromeTypesConvertService.cs" />
     <Compile Include="Services\Webparts\WebPartParameterBindingsOptions.cs" />
     <Compile Include="ServiceContainer.cs" />
+    <Compile Include="Syntax\Default\ClearRecycleBinDefinitionSyntax.cs" />
+    <Compile Include="Syntax\Default\AnonymousAccessSettingsDefinitionSyntax.cs" />
     <Compile Include="Syntax\Default\AlternateUrlDefinitionSyntax.cs" />
     <Compile Include="Syntax\Default\AppDefinitionSyntax.cs" />
     <Compile Include="Syntax\Default\AppPrincipalDefinitionSyntax.cs" />
@@ -473,6 +517,16 @@
     <Compile Include="Syntax\Default\WikiPageDefinitionSyntax.cs" />
     <Compile Include="Syntax\Default\Webparts\XsltListViewWebPartDefinitionSyntax.cs" />
     <Compile Include="Syntax\Extended\ListDefinitionSyntax.cs" />
+    <Compile Include="Templates\SP2010WebPartPageTemplates.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>SP2010WebPartPageTemplates.resx</DependentUpon>
+    </Compile>
+    <Compile Include="Templates\SP2013WebPartPageTemplates.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>SP2013WebPartPageTemplates.resx</DependentUpon>
+    </Compile>
     <Compile Include="Utils\CamlQueryUtils.cs" />
     <Compile Include="Utils\ConvertUtils.cs" />
     <Compile Include="Utils\PageViewerWebPartXmlExtensions.cs" />
@@ -528,6 +582,14 @@
   <ItemGroup>
     <None Include="Properties\SPMeta2.pfx" />
     <None Include="SPMeta2.snk" />
+    <EmbeddedResource Include="Templates\SP2010WebPartPageTemplates.resx">
+      <Generator>PublicResXFileCodeGenerator</Generator>
+      <LastGenOutput>SP2010WebPartPageTemplates.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Templates\SP2013WebPartPageTemplates.resx">
+      <Generator>PublicResXFileCodeGenerator</Generator>
+      <LastGenOutput>SP2013WebPartPageTemplates.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
     <EmbeddedResource Include="Templates\Webparts\ContentEditorWebPart.webpart" />
     <EmbeddedResource Include="Templates\Webparts\XsltListViewWebPart.webpart" />
     <EmbeddedResource Include="Templates\Webparts\ScriptEditorWebPart.webpart" />

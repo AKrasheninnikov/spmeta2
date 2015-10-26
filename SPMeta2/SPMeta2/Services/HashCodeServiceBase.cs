@@ -1,19 +1,29 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Runtime.Serialization;
 using System.Security.Cryptography;
-using System.Text;
-
 
 namespace SPMeta2.Services
 {
-    public abstract class HashCodeServiceBase
+    public abstract class HashCodeServiceBase : IDisposable
     {
         #region methods
 
         public abstract string GetHashCode(object instance);
+
+        public void Dispose()
+        {
+            InternalDispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void InternalDispose(bool disposing)
+        {
+            if (disposing)
+            {
+
+            }
+        }
 
         #endregion
     }
@@ -22,7 +32,13 @@ namespace SPMeta2.Services
 
     public class MD5HashCodeServiceBase : HashCodeServiceBase
     {
-        private readonly MD5CryptoServiceProvider _cryptoServiceProvider = new MD5CryptoServiceProvider();
+        #region properties
+
+        private MD5CryptoServiceProvider _cryptoServiceProvider = new MD5CryptoServiceProvider();
+
+        #endregion
+
+        #region methods
 
         public override string GetHashCode(object instance)
         {
@@ -36,5 +52,24 @@ namespace SPMeta2.Services
                 return Convert.ToBase64String(_cryptoServiceProvider.Hash);
             }
         }
+
+        protected override void InternalDispose(bool disposing)
+        {
+            base.InternalDispose(disposing);
+
+            if (disposing)
+            {
+                if (_cryptoServiceProvider != null)
+          
+                {
+#if !NET35 
+                    // OMG
+                    _cryptoServiceProvider.Dispose();
+#endif
+                }
+            }
+        }
+
+        #endregion
     }
 }

@@ -1,15 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
 using SPMeta2.Definitions;
 using SPMeta2.Models;
 
 // legacy
 namespace SPMeta2.Syntax.Default.Extensions
 {
-    
+    internal class Tmp1
+    {
+        
+    }
 }
 
 // new

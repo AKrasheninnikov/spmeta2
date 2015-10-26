@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-using SPMeta2.Services.Impl;
+﻿using SPMeta2.Services.Impl;
 
 namespace SPMeta2.Services
 {
@@ -23,8 +18,13 @@ namespace SPMeta2.Services
             // https://github.com/SubPointSolutions/spmeta2/issues/422
 
             PreDeploymentServices.Add(new DefaultRequiredPropertiesValidationService());
+
             PreDeploymentServices.Add(new DefaultXmlBasedPropertiesValidationService());
             PreDeploymentServices.Add(new DefaultVersionBasedPropertiesValidationService());
+            PreDeploymentServices.Add(new DefaultNotAbsoluteUrlPropertiesValidationService());
+
+            PreDeploymentServices.Add(new DefaultFieldInternalNamePropertyValidationService());
+            PreDeploymentServices.Add(new DefaultContentTypeIdPropertyValidationService());
         }
 
         private void InitDefaultPreDeploymentServices()

@@ -142,6 +142,12 @@ namespace SPMeta2.Regression.Tests.Impl.Syntax
         {
             var model = SPMeta2Model.NewWebModel(web =>
             {
+                web.AddClearRecycleBin(new ClearRecycleBinDefinition());
+
+                web
+                    .AddAnonymousAccessSettings(new AnonymousAccessSettingsDefinition())
+                    .AddAnonymousAccessSettings(new AnonymousAccessSettingsDefinition());
+
                 web.AddAuditSettings(new AuditSettingsDefinition());
                 web.AddWebNavigationSettings(new WebNavigationSettingsDefinition());
                 web.AddPageLayoutAndSiteTemplateSettings(new PageLayoutAndSiteTemplateSettingsDefinition());
@@ -240,6 +246,9 @@ namespace SPMeta2.Regression.Tests.Impl.Syntax
                     list.AddFolder(new FolderDefinition(), folder =>
                     {
                         folder
+                            .AddProperty(new PropertyDefinition())
+                            .AddProperty(new PropertyDefinition())
+
                             .AddWelcomePage(new WelcomePageDefinition())
                             .AddFolder(new FolderDefinition())
                             .AddListItem(new ListItemDefinition());

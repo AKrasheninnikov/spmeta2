@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Text;
 using SPMeta2.Exceptions;
 
 namespace SPMeta2.Utils
@@ -224,7 +223,16 @@ namespace SPMeta2.Utils
             return true;
         }
 
+        public static bool HasPropertyPublicSetter(object obj, string propName)
+        {
+            var prop = obj.GetType().GetProperty(propName);
+            if (prop != null)
+            {
+                return prop.GetSetMethod(false) != null;
+            }
 
+            return false;
+        }
         #endregion
     }
 }

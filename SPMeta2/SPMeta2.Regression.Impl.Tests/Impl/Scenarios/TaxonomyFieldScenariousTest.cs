@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Microsoft.SharePoint;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SPMeta2.Containers;
@@ -38,41 +39,60 @@ namespace SPMeta2.Regression.Impl.Tests.Scenarios
 
         #region deleted taxonomy field
 
-        [TestCategory("Regression.Scenarios.Taxonomy.TaxonomyField.DeletedField")]
-        [TestMethod]
-        public void CanDeploy_TaxonomyField_AfterDeleting()
-        {
-            var taxField = ModelGeneratorService.GetRandomDefinition<TaxonomyFieldDefinition>(def =>
-            {
-                def.Hidden = false;
-                def.AllowDeletion = true;
-            });
+        //[Obsolete("Is not used anymore. Special handling for taxonomy fields exlcuded due to potential data corruption - ")]
+        //[TestCategory("Regression.Scenarios.Taxonomy.TaxonomyField.DeletedField")]
+        //[TestMethod]
+        //public void CanDeploy_TaxonomyField_AfterDeleting()
+        //{
+        //    var taxField = ModelGeneratorService.GetRandomDefinition<TaxonomyFieldDefinition>(def =>
+        //    {
+        //        def.Hidden = false;
+        //        def.AllowDeletion = true;
+        //    });
 
-            var fieldModel = SPMeta2Model.NewSiteModel(site =>
-            {
-                site.AddTaxonomyField(taxField);
-            });
+        //    // that's a glitch, could be another field with the same title
+        //    // one the first field is deleted, the second provision for the first field will crash
 
-            // deploying field 
-            TestModel(fieldModel);
+        //    var additionalFields = new List<TaxonomyFieldDefinition>();
 
-            // deleting field
-            var deleteFieldModel = SPMeta2Model.NewSiteModel(site =>
-            {
-                site.AddRandomField(f =>
-                {
-                    f.OnProvisioned<object>(context =>
-                    {
-                        DeleteSiteField(context, taxField.Id);
-                    });
-                });
-            });
+        //    for (var i = 0; i < 10; i++)
+        //    {
+        //        additionalFields.Add(ModelGeneratorService.GetRandomDefinition<TaxonomyFieldDefinition>(def =>
+        //        {
+        //            def.Title = taxField.Title;
+        //            def.Hidden = false;
+        //            def.AllowDeletion = false;
+        //        }));
+        //    }
 
-            TestModel(deleteFieldModel);
+        //    var fieldModel = SPMeta2Model.NewSiteModel(site =>
+        //    {
+        //        site.AddTaxonomyFields(additionalFields);
+        //        site.AddTaxonomyField(taxField);
+        //    });
 
-            // deplying again
-            TestModel(fieldModel);
-        }
+        //    // deploying field 
+        //    TestModel(fieldModel);
+        //    TestModel(fieldModel);
+
+        //    // deleting field
+        //    var deleteFieldModel = SPMeta2Model.NewSiteModel(site =>
+        //    {
+        //        site.AddRandomField(f =>
+        //        {
+        //            f.OnProvisioned<object>(context =>
+        //            {
+        //                DeleteSiteField(context, taxField.Id);
+        //            });
+        //        });
+        //    });
+
+        //    TestModel(deleteFieldModel);
+
+        //    // deplying again
+        //    TestModel(fieldModel);
+        //    TestModel(fieldModel);
+        //}
 
         private void DeleteSiteField(OnCreatingContext<object, DefinitionBase> context, Guid fieldId)
         {

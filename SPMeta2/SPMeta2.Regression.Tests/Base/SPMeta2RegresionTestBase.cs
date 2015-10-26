@@ -36,7 +36,7 @@ namespace SPMeta2.Regression.Tests.Base
 
         public SPMeta2RegresionTestBase()
         {
-            
+
 
             ModelServiceBase.OnResolveNullModelHandler = (node => new EmptyModelhandler());
 
@@ -53,6 +53,8 @@ namespace SPMeta2.Regression.Tests.Base
             TestOptions = new RunOptions();
 
             TestOptions.EnableWebApplicationDefinitionTest = false;
+            TestOptions.EnableSerializeDeserializeAndStillDeployTests = false;
+
 
         }
 
@@ -101,7 +103,10 @@ namespace SPMeta2.Regression.Tests.Base
 
         protected class RunOptions
         {
+
+
             public bool EnableWebApplicationDefinitionTest { get; set; }
+            public bool EnableSerializeDeserializeAndStillDeployTests { get; set; }
         }
 
         #endregion
@@ -124,6 +129,24 @@ namespace SPMeta2.Regression.Tests.Base
         #endregion
 
         #region testing API
+
+        protected virtual void WithDisabledValidationOnTypes(Type type, Action action)
+        {
+            WithDisabledValidationOnTypes(new[] { type }, action);
+        }
+
+        protected virtual void WithDisabledValidationOnTypes(IEnumerable<Type> types, Action action)
+        {
+            try
+            {
+                RegressionService.RegExcludedDefinitionTypes.Add(typeof(WebDefinition));
+                action();
+            }
+            finally
+            {
+                RegressionService.RegExcludedDefinitionTypes.Clear();
+            }
+        }
 
         protected void WithDisabledPropertyUpdateValidation(Action action)
         {
@@ -153,6 +176,9 @@ namespace SPMeta2.Regression.Tests.Base
             var model = RegressionService.TestRandomDefinition(definitionSetup);
 
             PleaseMakeSureWeCanUpdatePropertiesForTheSharePointSake(new[] { model });
+
+
+            PleaseMakeSureWeCanSerializeDeserializeAndStillDeploy(new[] { model });
         }
 
         protected void WithSPMeta2NotSupportedExceptions(Action action)
@@ -229,7 +255,24 @@ namespace SPMeta2.Regression.Tests.Base
         protected void TestModels(IEnumerable<ModelNode> models)
         {
             RegressionService.TestModels(models);
+
             PleaseMakeSureWeCanUpdatePropertiesForTheSharePointSake(models);
+            PleaseMakeSureWeCanSerializeDeserializeAndStillDeploy(models);
+
+        }
+
+        private void PleaseMakeSureWeCanSerializeDeserializeAndStillDeploy(IEnumerable<ModelNode> models)
+        {
+            if (!TestOptions.EnableSerializeDeserializeAndStillDeployTests)
+                return;
+
+            TraceUtils.WithScope(trace =>
+            {
+                trace.WriteLine("Saving-restoring XML/JSON models. Deployng..");
+                var serializedModels = RegressionService.GetSerializedAndRestoredModels(models);
+
+                RegressionService.TestModels(serializedModels);
+            });
         }
 
         private void ProcessPropertyUpdateValidation(IEnumerable<ModelNode> models)

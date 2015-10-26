@@ -10,6 +10,7 @@ using SPMeta2.Definitions;
 using SPMeta2.Standard.Enumerations;
 using SPMeta2.Utils;
 using System.Runtime.Serialization;
+using SPMeta2.Definitions.Fields;
 
 namespace SPMeta2.Standard.Definitions.Fields
 {
@@ -30,18 +31,32 @@ namespace SPMeta2.Standard.Definitions.Fields
     [ExpectManyInstances]
 
 
-    public class HTMLFieldDefinition : FieldDefinition
+    public class HTMLFieldDefinition : NoteFieldDefinition
     {
         #region constructors
 
         public HTMLFieldDefinition()
         {
-            FieldType = BuiltInPublishingFieldTypes.HTML;
         }
 
         #endregion
 
         #region properties
+
+        [ExpectValidation]
+        [ExpectRequired]
+        [DataMember]
+        public override string FieldType
+        {
+            get
+            {
+                return BuiltInPublishingFieldTypes.HTML;
+            }
+            set
+            {
+
+            }
+        }
 
         [ExpectValidation]
         [DataMember]

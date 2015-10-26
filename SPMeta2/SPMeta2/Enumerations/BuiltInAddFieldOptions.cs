@@ -1,15 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-
-namespace SPMeta2.Enumerations
+﻿namespace SPMeta2.Enumerations
 {
     /// <summary>
     /// Reflects built-in SharePoint AddFieldOptions class.
     /// </summary>
-    public enum BuiltInAddFieldOptions : int
+    public enum BuiltInAddFieldOptions
     {
         DefaultValue = 0,
         AddToDefaultContentType = 1,

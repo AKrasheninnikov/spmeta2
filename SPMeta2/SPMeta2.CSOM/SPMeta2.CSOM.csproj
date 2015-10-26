@@ -27,6 +27,9 @@
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
     <DocumentationFile>bin\Debug\SPMeta2.CSOM.XML</DocumentationFile>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
+    <NoWarn>1591</NoWarn>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -80,31 +83,55 @@
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'CI-O365|AnyCPU'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\CI-O365\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DocumentationFile>bin\Debug\SPMeta2.CSOM.XML</DocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>1591</NoWarn>
+    <DebugType>full</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'CI-CSOM2013|AnyCPU'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\CI-CSOM2013\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DocumentationFile>bin\Debug\SPMeta2.CSOM.XML</DocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>1591</NoWarn>
+    <DebugType>full</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Condition="'$(spRuntime)'=='15' Or '$(Configuration)'=='Debug'" Include="Microsoft.SharePoint.Client, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
+      <SpecificVersion>True</SpecificVersion>
       <HintPath>..\SPMeta2.Dependencies\SharePoint\SP2013 - 15.0.4569.1000\CSOM\Microsoft.SharePoint.Client.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Condition="'$(spRuntime)'=='15' Or '$(Configuration)'=='Debug'" Include="Microsoft.SharePoint.Client.Runtime, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
+      <SpecificVersion>True</SpecificVersion>
       <HintPath>..\SPMeta2.Dependencies\SharePoint\SP2013 - 15.0.4569.1000\CSOM\Microsoft.SharePoint.Client.Runtime.dll</HintPath>
     </Reference>
     <Reference Condition="'$(spRuntime)'=='15' Or '$(Configuration)'=='Debug'" Include="Microsoft.SharePoint.Client.WorkflowServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
+      <SpecificVersion>True</SpecificVersion>
       <HintPath>..\SPMeta2.Dependencies\SharePoint\SP2013 - 15.0.4569.1000\CSOM\Microsoft.SharePoint.Client.WorkflowServices.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Condition="'$(spRuntime)'=='16'" Include="Microsoft.SharePoint.Client, Version=16.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
+    <Reference Condition="'$(spRuntime)'=='16' Or '$(Configuration)'=='CI-O365'" Include="Microsoft.SharePoint.Client, Version=16.1.3912.1204, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
+      <SpecificVersion>True</SpecificVersion>
       <HintPath>..\SPMeta2.Dependencies\SharePoint\O365 - 16.1.3912.1204\Microsoft.SharePoint.Client.dll</HintPath>
     </Reference>
-    <Reference Condition="'$(spRuntime)'=='16'" Include="Microsoft.SharePoint.Client.Runtime, Version=16.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
+    <Reference Condition="'$(spRuntime)'=='16' Or '$(Configuration)'=='CI-O365'" Include="Microsoft.SharePoint.Client.Runtime, Version=16.1.3912.1204, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
+      <SpecificVersion>True</SpecificVersion>
       <HintPath>..\SPMeta2.Dependencies\SharePoint\O365 - 16.1.3912.1204\Microsoft.SharePoint.Client.Runtime.dll</HintPath>
     </Reference>
-    <Reference Condition="'$(spRuntime)'=='16'" Include="Microsoft.SharePoint.Client.WorkflowServices, Version=16.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
+    <Reference Condition="'$(spRuntime)'=='16' Or '$(Configuration)'=='CI-O365'" Include="Microsoft.SharePoint.Client.WorkflowServices, Version=16.1.3912.1204, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
+      <SpecificVersion>True</SpecificVersion>
       <HintPath>..\SPMeta2.Dependencies\SharePoint\O365 - 16.1.3912.1204\Microsoft.SharePoint.Client.WorkflowServices.dll</HintPath>
     </Reference>
     <Reference Include="System" />
@@ -130,6 +157,7 @@
     <Compile Include="ModelHandlers\Base\PropertyModelHandler.cs" />
     <Compile Include="ModelHandlers\Base\WebPartGalleryFileModelHandler.cs" />
     <Compile Include="ModelHandlers\BreakRoleInheritanceModelHandler.cs" />
+    <Compile Include="ModelHandlers\ClearRecycleBinModelHandler.cs" />
     <Compile Include="ModelHandlers\ComposedLookItemLinkModelHandler.cs" />
     <Compile Include="ModelHandlers\ContentTypeFieldLinkModelHandler.cs" />
     <Compile Include="ModelHandlers\ContentTypeLinkModelHandler.cs" />
@@ -232,11 +260,6 @@
     <Compile Include="Services\Impl\DefaultClientRuntimeContextService.cs" />
     <Compile Include="Services\Impl\RequireCSOMRuntimeVersionDeploymentService.cs" />
     <Compile Include="Services\CSOMLocalizationService.cs" />
-    <Compile Include="WebPartPageTemplates.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>WebPartPageTemplates.resx</DependentUpon>
-    </Compile>
     <Compile Include="WebPartTemplates.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
@@ -253,11 +276,6 @@
     <EmbeddedResource Include="PublishingPageTemplates.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>PublishingPageTemplates.Designer.cs</LastGenOutput>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WebPartPageTemplates.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>WebPartPageTemplates.Designer.cs</LastGenOutput>
       <SubType>Designer</SubType>
     </EmbeddedResource>
     <EmbeddedResource Include="WebPartTemplates.resx">

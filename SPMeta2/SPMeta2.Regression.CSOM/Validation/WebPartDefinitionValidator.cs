@@ -7,8 +7,10 @@ using SPMeta2.Definitions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Xml.Linq;
+using SPMeta2.Attributes.Regression;
 using SPMeta2.CSOM.Extensions;
 using SPMeta2.Definitions.Base;
 using SPMeta2.Enumerations;
@@ -68,6 +70,75 @@ namespace SPMeta2.Regression.CSOM.Validation
 
 
                 assert.ShouldBeEqual(m => m.Title, o => o.Title);
+
+                // checking the web part type, shoul be as expected
+                // Add regression on 'expected' web part type #690
+
+                var currentType = CurrentWebPartXml.GetWebPartAssemblyQualifiedName();
+                var currentClassName = currentType.Split(',').First().Trim();
+
+                var expectedTypeAttr = (definition.GetType().GetCustomAttributes(typeof(ExpectWebpartType))
+                                                        .FirstOrDefault() as ExpectWebpartType);
+
+                // NULL can be on generic web part
+                // test should not care about that case, there other tests to enfore that attr usage
+                if (expectedTypeAttr != null)
+                {
+                    var expectedType = expectedTypeAttr.WebPartType;
+
+                    var expectedClassName = expectedType.Split(',').First().Trim();
+
+                    assert.ShouldBeEqual((p, s, d) =>
+                    {
+                        var isValid = true;
+
+                        isValid = currentClassName.ToUpper() == expectedClassName.ToUpper();
+
+                        return new PropertyValidationResult
+                        {
+                            Tag = p.Tag,
+                            Src = null,
+                            Dst = null,
+                            IsValid = isValid
+                        };
+                    });
+                }
+
+                // props
+
+                if (definition.Properties.Count > 0)
+                {
+                    assert.ShouldBeEqual((p, s, d) =>
+                    {
+                        var isValid = true;
+
+                        foreach (var prop in definition.Properties)
+                        {
+                            // returns correct one depending on the V2/V3
+                            var value = CurrentWebPartXml.GetProperty(prop.Name);
+
+                            // that True / true issue give a pain
+                            // toLower for the time being
+                            isValid = value.ToLower() == prop.Value.ToLower();
+
+                            if (!isValid)
+                                break;
+                        }
+
+                        var srcProp = s.GetExpressionValue(m => m.Properties);
+
+                        return new PropertyValidationResult
+                        {
+                            Tag = p.Tag,
+                            Src = srcProp,
+                            Dst = null,
+                            IsValid = isValid
+                        };
+                    });
+                }
+                else
+                    assert.SkipProperty(m => m.Properties, "Properties are empty. Skipping.");
+
 
                 if (!string.IsNullOrEmpty(definition.ExportMode))
                 {
@@ -142,7 +213,21 @@ namespace SPMeta2.Regression.CSOM.Validation
 
                 if (!string.IsNullOrEmpty(definition.Description))
                 {
+                    var value = CurrentWebPartXml.GetProperty("Description");
 
+                    assert.ShouldBeEqual((p, s, d) =>
+                    {
+                        var srcProp = s.GetExpressionValue(m => m.Description);
+                        var isValid = (srcProp.Value as string) == value;
+
+                        return new PropertyValidationResult
+                        {
+                            Tag = p.Tag,
+                            Src = srcProp,
+                            Dst = null,
+                            IsValid = isValid
+                        };
+                    });
                 }
                 else
                 {

@@ -1,5 +1,4 @@
 ﻿using Microsoft.SharePoint.Client;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SPMeta2.Containers.Assertion;
 using SPMeta2.CSOM.ModelHandlers;
 using SPMeta2.Definitions;
@@ -98,6 +97,8 @@ namespace SPMeta2.Regression.CSOM.Validation
             }
             else
                 assert.SkipProperty(m => m.Type);
+
+            assert.SkipProperty(m => m.ViewStyleId, "ViewStyleId unsupported by SP CSOM  API yet. Skipping.");
 
             if (!string.IsNullOrEmpty(definition.JSLink))
                 assert.ShouldBePartOf(m => m.JSLink, o => o.JSLink);

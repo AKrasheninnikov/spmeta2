@@ -17,7 +17,9 @@ using SPMeta2.Exceptions;
 
 using Microsoft.SharePoint;
 using System.IO;
+using System.Reflection;
 using System.Xml;
+using SPMeta2.Attributes.Regression;
 
 namespace SPMeta2.Regression.SSOM.Validation
 {
@@ -44,6 +46,70 @@ namespace SPMeta2.Regression.SSOM.Validation
                 var assert = ServiceFactory.AssertService
                                   .NewAssert(definition, spObject)
                                         .ShouldNotBeNull(spObject);
+
+                var currentType = spObject.GetType().AssemblyQualifiedName;
+                var currentClassName = currentType.Split(',').First().Trim();
+
+                var expectedTypeAttr = (definition.GetType().GetCustomAttributes(typeof(ExpectWebpartType))
+                    .FirstOrDefault() as ExpectWebpartType);
+
+                // NULL for the generic web part
+                // should not be tested here
+                if (expectedTypeAttr != null)
+                {
+                    var expectedType = expectedTypeAttr.WebPartType;
+
+                    var expectedClassName = expectedType.Split(',').First().Trim();
+
+                    assert.ShouldBeEqual((p, s, d) =>
+                    {
+                        var isValid = true;
+
+                        isValid = currentClassName.ToUpper() == expectedClassName.ToUpper();
+
+                        return new PropertyValidationResult
+                        {
+                            Tag = p.Tag,
+                            Src = null,
+                            Dst = null,
+                            IsValid = isValid
+                        };
+                    });
+                }
+                // props
+
+                if (definition.Properties.Count > 0)
+                {
+                    assert.ShouldBeEqual((p, s, d) =>
+                    {
+                        var isValid = true;
+
+                        foreach (var prop in definition.Properties)
+                        {
+                            // returns correct one depending on the V2/V3
+                            var value = ReflectionUtils.GetPropertyValue(d, prop.Name);
+
+                            // that True / true issue give a pain
+                            // toLower for the time being
+                            isValid = value.ToString().ToLower() == prop.Value.ToLower();
+
+                            if (!isValid)
+                                break;
+                        }
+
+                        var srcProp = s.GetExpressionValue(m => m.Properties);
+
+                        return new PropertyValidationResult
+                        {
+                            Tag = p.Tag,
+                            Src = srcProp,
+                            Dst = null,
+                            IsValid = isValid
+                        };
+                    });
+                }
+                else
+                    assert.SkipProperty(m => m.Properties, "Properties are empty. Skipping.");
 
                 if (!string.IsNullOrEmpty(definition.ChromeState))
                 {

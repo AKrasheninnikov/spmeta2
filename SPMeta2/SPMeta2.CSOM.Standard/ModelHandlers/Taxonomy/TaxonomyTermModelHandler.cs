@@ -8,12 +8,11 @@ using SPMeta2.CSOM.Extensions;
 using SPMeta2.CSOM.ModelHandlers;
 using SPMeta2.CSOM.Standard.ModelHosts;
 using SPMeta2.Definitions;
-using SPMeta2.Definitions.Base;
+using SPMeta2.Exceptions;
 using SPMeta2.Services;
 using SPMeta2.Standard.Definitions.Taxonomy;
-using SPMeta2.Utils;
-using SPMeta2.Exceptions;
 using SPMeta2.Standard.Utils;
+using SPMeta2.Utils;
 
 namespace SPMeta2.CSOM.Standard.ModelHandlers.Taxonomy
 {
@@ -166,11 +165,24 @@ namespace SPMeta2.CSOM.Standard.ModelHandlers.Taxonomy
 
         private void MapTermProperties(Term currentTerm, TaxonomyTermDefinition termModel)
         {
-            currentTerm.SetDescription(termModel.Description, termModel.LCID);
+            if (!string.IsNullOrEmpty(termModel.Description))
+                currentTerm.SetDescription(termModel.Description, termModel.LCID);
+
+            if (!string.IsNullOrEmpty(termModel.CustomSortOrder))
+                currentTerm.CustomSortOrder = termModel.CustomSortOrder;
+
+            if (termModel.IsAvailableForTagging.HasValue)
+                currentTerm.IsAvailableForTagging = termModel.IsAvailableForTagging.Value;
+
 
             foreach (var customProp in termModel.CustomProperties.Where(p => p.Override))
             {
                 currentTerm.SetCustomProperty(customProp.Name, customProp.Value);
+            }
+
+            foreach (var customProp in termModel.LocalCustomProperties.Where(p => p.Override))
+            {
+                currentTerm.SetLocalCustomProperty(customProp.Name, customProp.Value);
             }
         }
 

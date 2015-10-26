@@ -2,7 +2,6 @@
 using SPMeta2.CSOM.ModelHandlers;
 using SPMeta2.CSOM.ModelHosts;
 using SPMeta2.Definitions.Base;
-using SPMeta2.Definitions.Webparts;
 using SPMeta2.Enumerations;
 using SPMeta2.Standard.Definitions.Webparts;
 using SPMeta2.Utils;
@@ -25,7 +24,7 @@ namespace SPMeta2.CSOM.Standard.ModelHandlers.Webparts
         protected override string GetWebpartXmlDefinition(ListItemModelHost listItemModelHost, WebPartDefinitionBase webPartModel)
         {
             var definition = webPartModel.WithAssertAndCast<ContentBySearchWebPartDefinition>("model", value => value.RequireNotNull());
-            var xml = WebpartXmlExtensions.LoadWebpartXmlDocument(BuiltInWebPartTemplates.ContentByQueryWebPart);
+            var xml = WebpartXmlExtensions.LoadWebpartXmlDocument(BuiltInWebPartTemplates.ContentBySearchWebPart);
 
             // JSON
             if (!string.IsNullOrEmpty(definition.DataProviderJSON))

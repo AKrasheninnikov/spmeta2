@@ -1,9 +1,8 @@
-﻿using SPMeta2.Attributes.Identity;
-using SPMeta2.Attributes.Regression;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using SPMeta2.Definitions.Base;
 using System.Runtime.Serialization;
+using SPMeta2.Attributes.Identity;
+using SPMeta2.Attributes.Regression;
 
 namespace SPMeta2.Definitions
 {
@@ -11,9 +10,13 @@ namespace SPMeta2.Definitions
     [DataContract]
     public class FieldValue
     {
+        [DataMember]
         public string FieldName { get; set; }
+
+        [DataMember]
         public Guid? FieldId { get; set; }
 
+        [DataMember]
         public object Value { get; set; }
     }
 
@@ -27,7 +30,7 @@ namespace SPMeta2.Definitions
     {
         #region constructors
 
-        public PageDefinitionBase()
+        protected PageDefinitionBase()
         {
             NeedOverride = true;
             DefaultValues = new List<FieldValue>();

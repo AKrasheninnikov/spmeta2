@@ -1,8 +1,5 @@
-﻿using SPMeta2.Definitions;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Collections.Generic;
+using SPMeta2.Definitions;
 using SPMeta2.Definitions.ContentTypes;
 using SPMeta2.Definitions.Fields;
 
@@ -127,6 +124,8 @@ namespace SPMeta2.Common
                 typeof(WebDefinition),
                 new[]
                 {
+                    typeof(ClearRecycleBinDefinition),
+
                     // AppDefinition should be deployed before pages #628
                     // https://github.com/SubPointSolutions/spmeta2/issues/628
                     typeof (AppDefinition),
@@ -139,7 +138,8 @@ namespace SPMeta2.Common
                     typeof (ResetRoleInheritanceDefinition),
 
                     typeof (SecurityRoleLinkDefinition),
-
+                    typeof (AnonymousAccessSettingsDefinition),
+                    
                     typeof (PropertyDefinition),
                     
                     typeof (FieldDefinition),
